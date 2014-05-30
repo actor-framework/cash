@@ -17,12 +17,33 @@
  * accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt  *
 \******************************************************************************/
 
+#include "cppa/cppa.hpp"
 
 #ifndef ACTORSHELL_ACTORSHELL_HPP
 #define ACTORSHELL_ACTORSHELL_HPP
 
+
+
 namespace actorshell {
 
+class actorshell : public cppa::event_based_actor {
+
+    // attributes:
+    // nodelist
+    // actorlist
+
+
+ public:
+
+    cppa::behavior make_behavior() override{
+        return {};
+    }
+
+    // get nodelists
+    // get actorlist
+    // get published actors
+    // get connected actors
+};
 
 } // namespace actorshell
 
