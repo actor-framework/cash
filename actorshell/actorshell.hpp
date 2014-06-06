@@ -22,17 +22,15 @@
 #ifndef ACTORSHELL_ACTORSHELL_HPP
 #define ACTORSHELL_ACTORSHELL_HPP
 
-
-
-namespace actorshell {
-
 #include <string.h>
+#include <vector>
 
 #include "shell.hpp"
 
-//#include "readline/history.h"
-//#include "readline/readline.h"
 #include "editline/readline.h"
+
+
+namespace actorshell {
 
 class actorshell : public cppa::event_based_actor {
 

@@ -104,7 +104,8 @@ file(GLOB ACTORSHELL_HDRS "actorshell/*.hpp")
 
 # list cpp files including platform-dependent files
 set(ACTORSHELL_SRC
-    src/main.cpp)
+    src/main.cpp
+    src/shell.cpp)
 
 find_package(LibCPPA REQUIRED)
 find_package(Editline REQUIRED)
