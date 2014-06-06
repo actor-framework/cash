@@ -26,6 +26,14 @@
 
 namespace actorshell {
 
+#include <string.h>
+
+#include "shell.hpp"
+
+//#include "readline/history.h"
+//#include "readline/readline.h"
+#include "editline/readline.h"
+
 class actorshell : public cppa::event_based_actor {
 
     // attributes:
