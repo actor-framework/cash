@@ -1,5 +1,11 @@
-src/main.cpp
-src/shell.cpp
+sash/sash/color.hpp
+sash/sash/command.hpp
+sash/sash/command_line.hpp
+sash/sash/completer.hpp
+sash/sash/editline.hpp
+sash/sash/libedit_backend.hpp
+sash/sash/mode.hpp
+sash/sash/sash.hpp
+sash/sash/variables_engine.hpp
 
-actorshell/actorshell.hpp
-actorshell/shell.hpp
+src/main.cpp

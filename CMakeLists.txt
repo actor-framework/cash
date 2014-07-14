@@ -103,14 +103,13 @@ endif ("${CMAKE_BUILD_TYPE}" STREQUAL "")
 file(GLOB ACTORSHELL_HDRS "actorshell/*.hpp")
 
 # list cpp files including platform-dependent files
-set(ACTORSHELL_SRC
-    src/main.cpp
-    src/shell.cpp)
+set(ACTORSHELL_SRC    
+    src/main.cpp)
 
 find_package(LibCPPA REQUIRED)
 find_package(Editline REQUIRED)
 
-include_directories(. .. ${CPPA_INCLUDE} ${EDITLINE_INCLUDE_DIR})
+include_directories(. .. ${CPPA_INCLUDE} ${EDITLINE_INCLUDE_DIR} sash)
 
 set(INCLUDE_DIRS .)
 set(LD_DIRS)
