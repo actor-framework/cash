@@ -8,4 +8,11 @@ sash/sash/mode.hpp
 sash/sash/sash.hpp
 sash/sash/variables_engine.hpp
 
+probe-events/caf/probe_event/probe_event.hpp
+
+include/shell_actor.h
+
 src/main.cpp
+src/shell_actor.cpp
+src/global_mode.cpp
+include/modes.h
