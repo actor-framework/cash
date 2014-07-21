@@ -106,91 +106,92 @@ file(GLOB ACTORSHELL_HDRS "actorshell/*.hpp")
 set(ACTORSHELL_SRC    
     src/main.cpp)
 
-find_package(LibCPPA REQUIRED)
+find_package(Libcaf REQUIRED)
 find_package(Editline REQUIRED)
 
-include_directories(. .. ${CPPA_INCLUDE} ${EDITLINE_INCLUDE_DIR} sash)
+		include_directories(. .. ${LIBCAF_INCLUDE_DIR} ${EDITLINE_INCLUDE_DIR} sash)
 
-set(INCLUDE_DIRS .)
-set(LD_DIRS)
-set(LD_FLAGS ${CMAKE_LD_LIBS})
+	set(INCLUDE_DIRS .)
+	set(LD_DIRS)
+	set(LD_FLAGS ${CMAKE_LD_LIBS})
 
-add_executable(actorshell ${ACTORSHELL_SRC})
-target_link_libraries(actorshell ${CMAKE_DL_LIBS} ${CPPA_LIBRARY} ${LD_FLAGS} ${EDITLINE_LIBRARIES})
+	add_executable(actorshell ${ACTORSHELL_SRC})
+	target_link_libraries(actorshell ${CMAKE_DL_LIBS} ${LIBCAF_LIBRARIES} ${LD_FLAGS} ${EDITLINE_LIBRARIES})
 
-if (APPLE)
-  # -pthread is ignored on MacOSX
-elseif (UNIX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-elseif (MINGW)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-  set(LD_FLAGS "ws2_32 -liphlpapi")
-endif ()
+	if (APPLE)
+	  # -pthread is ignored on MacOSX
+	elseif (UNIX)
+	  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+	elseif (MINGW)
+	  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+	  set(LD_FLAGS "ws2_32 -liphlpapi")
+	endif ()
 
-link_directories(${LD_DIRS})
-include_directories(${INCLUDE_DIRS})
+	link_directories(${LD_DIRS})
+	include_directories(${INCLUDE_DIRS})
 
-# install includes
-install(DIRECTORY cppa/ DESTINATION include/cppa FILES_MATCHING PATTERN "*.hpp")
+	# install includes
+	install(DIRECTORY cppa/ DESTINATION include/cppa FILES_MATCHING PATTERN "*.hpp")
 
-# process cmake_uninstall.cmake.in
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
-               "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-               IMMEDIATE @ONLY)
+	# process cmake_uninstall.cmake.in
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+		       "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+		       IMMEDIATE @ONLY)
 
-# add uninstall target
-add_custom_target(uninstall
-                  COMMAND ${CMAKE_COMMAND} -P
-                  ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+	# add uninstall target
+	add_custom_target(uninstall
+			  COMMAND ${CMAKE_COMMAND} -P
+			  ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 
-# set variables for summary
-set(LOG_LEVEL_STR "none")
-if (CPPA_LOG_LEVEL)
-  if (${CPPA_LOG_LEVEL} EQUAL 0)
-    set(LOG_LEVEL_STR "ERROR")
-  elseif (${CPPA_LOG_LEVEL} EQUAL 1)
-    set(LOG_LEVEL_STR "WARNING")
-  elseif (${CPPA_LOG_LEVEL} EQUAL 2)
-    set(LOG_LEVEL_STR "INFO")
-  elseif (${CPPA_LOG_LEVEL} EQUAL 3)
-    set(LOG_LEVEL_STR "DEBUG")
-  elseif (${CPPA_LOG_LEVEL} EQUAL 4)
-    set(LOG_LEVEL_STR "TRACE")
-  else ()
-    set(LOG_LEVEL_STR "invalid")
-  endif ()
-endif (CPPA_LOG_LEVEL)
+	# set variables for summary
+	set(LOG_LEVEL_STR "none")
+	if (CPPA_LOG_LEVEL)
+	  if (${CPPA_LOG_LEVEL} EQUAL 0)
+	    set(LOG_LEVEL_STR "ERROR")
+	  elseif (${CPPA_LOG_LEVEL} EQUAL 1)
+	    set(LOG_LEVEL_STR "WARNING")
+	  elseif (${CPPA_LOG_LEVEL} EQUAL 2)
+	    set(LOG_LEVEL_STR "INFO")
+	  elseif (${CPPA_LOG_LEVEL} EQUAL 3)
+	    set(LOG_LEVEL_STR "DEBUG")
+	  elseif (${CPPA_LOG_LEVEL} EQUAL 4)
+	    set(LOG_LEVEL_STR "TRACE")
+	  else ()
+	    set(LOG_LEVEL_STR "invalid")
+	  endif ()
+	endif (CPPA_LOG_LEVEL)
 
-macro (toYesNo in out)
-  if (${in})
-    set(${out} "yes")
-  else ()
-    set(${out} "no")
-  endif ()
-endmacro ()
+	macro (toYesNo in out)
+	  if (${in})
+	    set(${out} "yes")
+	  else ()
+	    set(${out} "no")
+	  endif ()
+	endmacro ()
 
-toYesNo(ENABLE_DEBUG DEBUG_MODE_STR)
+	toYesNo(ENABLE_DEBUG DEBUG_MODE_STR)
 
-# done (print summary)
-message("\n====================|  Build Summary  |===================="
-        "\n"
-        "\nLibcppa version:   ${LIBRARY_VERSION}"
-        "\n"
-        "\nBuild type:        ${CMAKE_BUILD_TYPE}"
-        "\nDebug mode:        ${DEBUG_MODE_STR}"
-        "\nLog level:         ${LOG_LEVEL_STR}"
-        "\n"
-        "\nCXX:               ${CMAKE_CXX_COMPILER}"
-        "\nCXXFLAGS:          ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type}}"
-        "\nLD_DIRS:           ${LD_DIRS}"
-        "\nLIBRARIES:         ${LD_FLAGS}"
-        "\n"
-        "\nSource directory:  ${CMAKE_SOURCE_DIR}"
-        "\nBuild directory:   ${CMAKE_BINARY_DIR}"
-        "\nExecutable path:   ${EXECUTABLE_OUTPUT_PATH}"
-        "\nLibrary path:      ${LIBRARY_OUTPUT_PATH}"
-        "\nInstall prefix:    ${CMAKE_INSTALL_PREFIX}"
-        "\n"
-        "\nEditline:          ${EDITLINE_LIBRARIES}"
-        "\n"
+	# done (print summary)
+	message("\n====================|  Build Summary  |===================="
+		"\n"
+		"\nLibcppa version:   ${LIBRARY_VERSION}"
+		"\n"
+		"\nBuild type:        ${CMAKE_BUILD_TYPE}"
+		"\nDebug mode:        ${DEBUG_MODE_STR}"
+		"\nLog level:         ${LOG_LEVEL_STR}"
+		"\n"
+		"\nCXX:               ${CMAKE_CXX_COMPILER}"
+		"\nCXXFLAGS:          ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type}}"
+		"\nLD_DIRS:           ${LD_DIRS}"
+		"\nLIBRARIES:         ${LD_FLAGS}"
+		"\n"
+		"\nSource directory:  ${CMAKE_SOURCE_DIR}"
+		"\nBuild directory:   ${CMAKE_BINARY_DIR}"
+		"\nExecutable path:   ${EXECUTABLE_OUTPUT_PATH}"
+		"\nLibrary path:      ${LIBRARY_OUTPUT_PATH}"
+		"\nInstall prefix:    ${CMAKE_INSTALL_PREFIX}"
+		"\n"
+		"\nEditline:          ${EDITLINE_LIBRARIES}"
+		"\n"
+		"\nLibcaf: 	      ${LIBCAF_INCLUDE_DIR}"
         "\n===========================================================\n")
