@@ -19,33 +19,48 @@
 
 #include <set>
 #include <iostream>
+#include <iomanip>
 
-#include "cppa/cppa.hpp"
+#include "caf/all.hpp"
 #include "sash/sash.hpp"
 #include "sash/libedit_backend.hpp" // our backend
 #include "sash/variables_engine.hpp"
 
-<<<<<<< HEAD
-
-// #include "probe-events/caf/probe_event/probe_event.hpp"
-
-=======
-#include "include/shell_actor.h"
+#include "caf/shell/shell_actor.hpp"
 //#include "probe-events/caf/probe_event/probe_event.hpp"
->>>>>>> a90828d0ff6a7888b44c6439d9c840804c2beda2
 
 using namespace std;
 using namespace caf;
+using namespace probe_event;
+using namespace caf::shell;
+
+// Test purporses:
+/*
+struct node_data {
+    probe_event::node_info node_info;
+    probe_event::work_load work_load;
+    probe_event::ram_usage ram_usage;
+};
+*/
+node_data node_d1 {{node_id(42, "afafafafafafafafafafafafafafafafafafafaf"),
+                   {{2,2300}}},
+                   {0, 5, 3},
+                   {512, 1024}};
+
+node_data node_d2 {{node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
+                   {{4,1500}, {8,2500}}},
+                   {0, 20, 3},
+                   {1024, 8096}};
 
 int main() {
-  {
   using sash::command_result;
   using char_iter = string::const_iterator;
   using cli_type = sash::sash<sash::libedit_backend>::type;
-  scoped_actor              self;
   map<node_id, node_data>   known_nodes;
-  known_nodes.emplace(node_id(42, "afafafafafafafafafafafafafafafafafafafaf"), node_data{});
-  known_nodes.emplace(node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"), node_data{});
+  known_nodes.emplace(node_id(42, "afafafafafafafafafafafafafafafafafafafaf"),
+                      node_d1);
+  known_nodes.emplace(node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
+                      node_d2);
   list<node_id>             visited_nodes;
   cli_type                  cli;
   string                    line;
@@ -54,7 +69,9 @@ int main() {
   auto                      node_mode    = cli.mode_add("node"  , " > ");
   bool                      done         = false;
   cli.mode_push("global");
-  cli.add_preprocessor(sash::variables_engine<>::create());
+  auto engine = sash::variables_engine<>::create();
+  cli.add_preprocessor(engine->as_functor());
+  //cli.add_preprocessor(sash::variables_engine<>::create());
   vector<cli_type::mode_type::cmd_clause> global_cmds {
       {
         "quit", "terminates the whole thing.",
@@ -116,17 +133,18 @@ int main() {
               }
             }
             if(is_in) {
-              // currently not on this node.
-              if(!(visited_nodes.back() == *input_node))
+              if(!(visited_nodes.back() == *input_node)) {
+                engine->set("node", to_string(*input_node));
                 visited_nodes.push_back(*input_node);
+              }
             } else {
-              err = "Node is not known";
+              err = "Node-id is unknown";
               return sash::no_command;
             }
             // update prompt
             cli.mode_push("node");
           } else {
-             err = "Invalid node_id. ";
+             err = "Invalid node-id. ";
              return sash::no_command;
           }
           return sash::executed;
@@ -137,7 +155,7 @@ int main() {
         [&](string& err, char_iter first, char_iter last) -> command_result {
           if(visited_nodes.empty()) {
             err = "You are currently in globalmode. You can select a node"
-                  "with 'change-node <node_id>'.";
+                  " with 'change-node <node-id>'.";
             return sash::no_command;
             } else {
               cout << "Node: " << to_string(visited_nodes.back()) << endl;
@@ -150,33 +168,71 @@ int main() {
       {
         "leave-node", "returns to global mode",
         [&](string& err, char_iter first, char_iter last) -> command_result {
-          if(visited_nodes.back() != invalid_node_id) {
-            cli.mode_pop();
+          visited_nodes = list<node_id>();
+          cli.mode_pop();
+          cout << "Leaving node-mode..." << endl;
+        }
+      },
+      {
+        "whereiwas", "prints all node-ids visited starting with least.",
+        [&](string& err, char_iter first, char_iter last) -> command_result {
+          int i = visited_nodes.size();
+          for(auto node : visited_nodes) {
+            cout << i << ": " << to_string(node) << endl;
+            i--;
+          }
+          return sash::executed;
+        }
+      },
+      {
+        "back", "changes location to previous node.",
+        [&](string& err, char_iter first, char_iter last) -> command_result {
+          if(first == last) {
+            if(visited_nodes.size() <= 1) {
+              cout << "Leaving node-mode..." << endl;
+              cli.mode_pop();
+            }
+            visited_nodes.pop_back();
             return sash::executed;
           } else {
-            err = "[ERROR]: Invalid node_id.";
+            err = "list-nodes: to many arguments (none expected).";
             return sash::no_command;
           }
         }
       },
       {
-        "back", "changes location to previous node.",
-        [&](string& err, char_iter, char_iter) -> command_result {
-          if(visited_nodes.size() == 1) {
-            cout << "Leaving node-mode..." << endl;
-            cli.mode_pop();
-          } else {
-            throw new exception();
-          }
-          visited_nodes.pop_back();
-          return sash::executed;
-        }
-      },
-      {
         "statistics", "prints current RAM and CPU statistics of current node.",
         [&](string& err, char_iter, char_iter) -> command_result {
-          err = "Not implemented now.";
-          return sash::no_command;
+          auto search = known_nodes.find(visited_nodes.back());
+          if(search != known_nodes.end()) {
+            cout << setw(20) << "Node-ID: "
+                 << "  "  << to_string((search->second.node_info.id))
+                 << endl;
+            cout << setw(20) << "CPU statistics: "
+                 << setw(3)  << "#"
+                 << setw(10) << "Core No"
+                 << setw(12) << "MHz/Core" << endl;
+              int i = 1;
+              for(cpu_info cpu : search->second.node_info.cpu) {
+                cout << setw(23) << i
+                     << setw(10) << cpu.num_cores
+                     << setw(12) << cpu.mhz_per_core << endl;
+                i++;
+              }
+            cout << setw(20) << "Workload: "
+                 << endl
+                 << setw(22) << left << " " << "CPU: "
+                 << setw(12)  << search->second.work_load.cpu_load << "%"
+                 << endl
+                 << setw(22) << left << " " << "Processes: "
+                 << setw(12) << " " << search->second.work_load.num_processes
+                 << endl
+                 << setw(22) << left << " " << "Actors: " << right
+                 << setw(12) << " " << search->second.work_load.num_actors
+                 << endl;
+          }
+
+          return sash::executed;
         }
       }
   };
@@ -200,8 +256,6 @@ int main() {
         break;
     }
   }
-  }
   await_all_actors_done();
   shutdown();
 }
-

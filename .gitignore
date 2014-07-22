@@ -1,4 +1,5 @@
 build/*
 actorshell.creator.user
 actorshell.files
+CMakeLists.txt.user
 Makefile

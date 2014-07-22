@@ -1,16 +1,19 @@
-#include "include/shell_actor.h"
+#include "caf/shell/shell_actor.hpp"
 
-using namespace cppa;
+namespace caf {
+namespace shell {
 
 shell_actor::shell_actor() {
-
+  // nop
 }
 
-
-shell_actor::make_behavior() override {
+behavior shell_actor::make_behavior() {
   return {
-    on(atom("cn")) >> [] () {
+    on(atom("cn")) >> []() {
 
     }
   };
 }
+
+} // namespace shell
+} // namespace caf

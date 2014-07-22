@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(cppa C CXX)
+project(caf_shell C CXX)
 
 # extract version from VERSION file
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" VERSION LIMIT_COUNT 1)
@@ -100,98 +100,104 @@ endif ("${CMAKE_BUILD_TYPE}" STREQUAL "")
 
 # get header files; only needed by CMake generators,
 # e.g., for creating proper Xcode projects
-file(GLOB ACTORSHELL_HDRS "actorshell/*.hpp")
+file(GLOB ACTORSHELL_HDRS
+     "caf/shell/*.hpp"
+     "sash/sash/*.hpp"
+     "probe-events/caf/probe_event/*.hpp")
 
 # list cpp files including platform-dependent files
-set(ACTORSHELL_SRC    
-    src/main.cpp)
+set(ACTORSHELL_SRC
+    src/main.cpp
+    src/shell_actor.cpp)
 
-find_package(Libcaf REQUIRED)
+find_package(Libcaf COMPONENTS core io REQUIRED)
 find_package(Editline REQUIRED)
 
-		include_directories(. .. ${LIBCAF_INCLUDE_DIR} ${EDITLINE_INCLUDE_DIR} sash)
+include_directories(. ..  ${LIBCAF_INCLUDE_DIRS}
+                          ${EDITLINE_INCLUDE_DIR}
+                          sash
+                          probe-events/caf/probe_event)
 
-	set(INCLUDE_DIRS .)
-	set(LD_DIRS)
-	set(LD_FLAGS ${CMAKE_LD_LIBS})
+  set(INCLUDE_DIRS .)
+  set(LD_DIRS)
+  set(LD_FLAGS ${CMAKE_LD_LIBS})
 
-	add_executable(actorshell ${ACTORSHELL_SRC})
-	target_link_libraries(actorshell ${CMAKE_DL_LIBS} ${LIBCAF_LIBRARIES} ${LD_FLAGS} ${EDITLINE_LIBRARIES})
+  add_executable(actorshell ${ACTORSHELL_SRC} ${ACTORSHELL_HDRS})
+  target_link_libraries(actorshell ${CMAKE_DL_LIBS} ${LIBCAF_LIBRARIES} ${LD_FLAGS} ${EDITLINE_LIBRARIES})
 
-	if (APPLE)
-	  # -pthread is ignored on MacOSX
-	elseif (UNIX)
-	  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-	elseif (MINGW)
-	  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-	  set(LD_FLAGS "ws2_32 -liphlpapi")
-	endif ()
+  if (APPLE)
+    # -pthread is ignored on MacOSX
+  elseif (UNIX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+  elseif (MINGW)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+    set(LD_FLAGS "ws2_32 -liphlpapi")
+  endif ()
 
-	link_directories(${LD_DIRS})
-	include_directories(${INCLUDE_DIRS})
+  link_directories(${LD_DIRS})
+  include_directories(${INCLUDE_DIRS})
 
-	# install includes
-	install(DIRECTORY cppa/ DESTINATION include/cppa FILES_MATCHING PATTERN "*.hpp")
+  # install includes
+  install(DIRECTORY cppa/ DESTINATION include/cppa FILES_MATCHING PATTERN "*.hpp")
 
-	# process cmake_uninstall.cmake.in
-	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
-		       "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-		       IMMEDIATE @ONLY)
+  # process cmake_uninstall.cmake.in
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+           "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+           IMMEDIATE @ONLY)
 
-	# add uninstall target
-	add_custom_target(uninstall
-			  COMMAND ${CMAKE_COMMAND} -P
-			  ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+  # add uninstall target
+  add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -P
+        ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 
-	# set variables for summary
-	set(LOG_LEVEL_STR "none")
-	if (CPPA_LOG_LEVEL)
-	  if (${CPPA_LOG_LEVEL} EQUAL 0)
-	    set(LOG_LEVEL_STR "ERROR")
-	  elseif (${CPPA_LOG_LEVEL} EQUAL 1)
-	    set(LOG_LEVEL_STR "WARNING")
-	  elseif (${CPPA_LOG_LEVEL} EQUAL 2)
-	    set(LOG_LEVEL_STR "INFO")
-	  elseif (${CPPA_LOG_LEVEL} EQUAL 3)
-	    set(LOG_LEVEL_STR "DEBUG")
-	  elseif (${CPPA_LOG_LEVEL} EQUAL 4)
-	    set(LOG_LEVEL_STR "TRACE")
-	  else ()
-	    set(LOG_LEVEL_STR "invalid")
-	  endif ()
-	endif (CPPA_LOG_LEVEL)
+  # set variables for summary
+  set(LOG_LEVEL_STR "none")
+  if (CPPA_LOG_LEVEL)
+    if (${CPPA_LOG_LEVEL} EQUAL 0)
+      set(LOG_LEVEL_STR "ERROR")
+    elseif (${CPPA_LOG_LEVEL} EQUAL 1)
+      set(LOG_LEVEL_STR "WARNING")
+    elseif (${CPPA_LOG_LEVEL} EQUAL 2)
+      set(LOG_LEVEL_STR "INFO")
+    elseif (${CPPA_LOG_LEVEL} EQUAL 3)
+      set(LOG_LEVEL_STR "DEBUG")
+    elseif (${CPPA_LOG_LEVEL} EQUAL 4)
+      set(LOG_LEVEL_STR "TRACE")
+    else ()
+      set(LOG_LEVEL_STR "invalid")
+    endif ()
+  endif (CPPA_LOG_LEVEL)
 
-	macro (toYesNo in out)
-	  if (${in})
-	    set(${out} "yes")
-	  else ()
-	    set(${out} "no")
-	  endif ()
-	endmacro ()
+  macro (toYesNo in out)
+    if (${in})
+      set(${out} "yes")
+    else ()
+      set(${out} "no")
+    endif ()
+  endmacro ()
 
-	toYesNo(ENABLE_DEBUG DEBUG_MODE_STR)
+  toYesNo(ENABLE_DEBUG DEBUG_MODE_STR)
 
-	# done (print summary)
-	message("\n====================|  Build Summary  |===================="
-		"\n"
-		"\nLibcppa version:   ${LIBRARY_VERSION}"
-		"\n"
-		"\nBuild type:        ${CMAKE_BUILD_TYPE}"
-		"\nDebug mode:        ${DEBUG_MODE_STR}"
-		"\nLog level:         ${LOG_LEVEL_STR}"
-		"\n"
-		"\nCXX:               ${CMAKE_CXX_COMPILER}"
-		"\nCXXFLAGS:          ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type}}"
-		"\nLD_DIRS:           ${LD_DIRS}"
-		"\nLIBRARIES:         ${LD_FLAGS}"
-		"\n"
-		"\nSource directory:  ${CMAKE_SOURCE_DIR}"
-		"\nBuild directory:   ${CMAKE_BINARY_DIR}"
-		"\nExecutable path:   ${EXECUTABLE_OUTPUT_PATH}"
-		"\nLibrary path:      ${LIBRARY_OUTPUT_PATH}"
-		"\nInstall prefix:    ${CMAKE_INSTALL_PREFIX}"
-		"\n"
-		"\nEditline:          ${EDITLINE_LIBRARIES}"
-		"\n"
-		"\nLibcaf: 	      ${LIBCAF_INCLUDE_DIR}"
-        "\n===========================================================\n")
+  # done (print summary)
+  message("\n====================|  Build Summary  |===================="
+    "\n"
+    "\nBuild type:        ${CMAKE_BUILD_TYPE}"
+    "\nDebug mode:        ${DEBUG_MODE_STR}"
+    "\nLog level:         ${LOG_LEVEL_STR}"
+    "\n"
+    "\nCXX:               ${CMAKE_CXX_COMPILER}"
+    "\nCXXFLAGS:          ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type}}"
+    "\nLD_DIRS:           ${LD_DIRS}"
+    "\nLIBRARIES:         ${LD_FLAGS}"
+    "\n"
+    "\nSource directory:  ${CMAKE_SOURCE_DIR}"
+    "\nBuild directory:   ${CMAKE_BINARY_DIR}"
+    "\nExecutable path:   ${EXECUTABLE_OUTPUT_PATH}"
+    "\nLibrary path:      ${LIBRARY_OUTPUT_PATH}"
+    "\nInstall prefix:    ${CMAKE_INSTALL_PREFIX}"
+    "\n"
+    "\nEditline:          ${EDITLINE_LIBRARIES}"
+    "\n"
+    "\nLibcaf includes:   ${LIBCAF_INCLUDE_DIRS}"
+    "\nLibcaf libs:       ${LIBCAF_LIBRARIES}"
+    "\n===========================================================\n")
