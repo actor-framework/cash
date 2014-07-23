@@ -48,8 +48,13 @@ node_data node_d1 {{node_id(42, "afafafafafafafafafafafafafafafafafafafaf"),
                    {512, 1024}};
 
 node_data node_d2 {{node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-                   {{4,1500}, {8,2500}}},
-                   {0, 20, 3},
+                   {{4,1500}, {32,3500}}},
+                   {10, 20, 3},
+                   {1024, 8096}};
+
+node_data node_d3 {{node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
+                   {{4,1500}, {8,2500}, {64,5500}}},
+                   {23, 20, 3},
                    {1024, 8096}};
 
 int main() {
@@ -61,6 +66,9 @@ int main() {
                       node_d1);
   known_nodes.emplace(node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
                       node_d2);
+
+  known_nodes.emplace(node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
+                      node_d3);
   list<node_id>             visited_nodes;
   cli_type                  cli;
   string                    line;
@@ -205,9 +213,10 @@ int main() {
         [&](string& err, char_iter, char_iter) -> command_result {
           auto search = known_nodes.find(visited_nodes.back());
           if(search != known_nodes.end()) {
+            // node_info
             cout << setw(20) << "Node-ID: "
-                 << "  "  << to_string((search->second.node_info.id))
-                 << endl;
+                 << setw(46) << to_string((search->second.node_info.id))
+                 << endl ;
             cout << setw(20) << "CPU statistics: "
                  << setw(3)  << "#"
                  << setw(10) << "Core No"
@@ -219,19 +228,43 @@ int main() {
                      << setw(12) << cpu.mhz_per_core << endl;
                 i++;
               }
-            cout << setw(20) << "Workload: "
+            // work_load
+            cout << setw(20) << "Processes: "
+                 << setw(3)  << search->second.work_load.num_processes
                  << endl
-                 << setw(22) << left << " " << "CPU: "
-                 << setw(12)  << search->second.work_load.cpu_load << "%"
+                 << setw(20) << "Actors: "
+                 << setw(3)  << search->second.work_load.num_actors
                  << endl
-                 << setw(22) << left << " " << "Processes: "
-                 << setw(12) << " " << search->second.work_load.num_processes
-                 << endl
-                 << setw(22) << left << " " << "Actors: " << right
-                 << setw(12) << " " << search->second.work_load.num_actors
-                 << endl;
+                 << setw(20) << "CPU: "
+                 << setw(2)  << "[";
+            for(float i = 0; i < 50; i++) {
+              if(i < search->second.work_load.cpu_load / 2) {
+                cout << "#";
+              } else {
+                cout << " ";
+              }
+            }
+            cout << "] "
+                 << int(search->second.work_load.cpu_load) << "%" << endl;
+            // ram_usage
+            cout << setw(20) << "RAM: "
+                 << setw(2)  << "[";
+            float used_ram_in_percent= float(search->second.ram_usage.in_use)
+                                     / float(search->second.ram_usage.available)
+                                     * 100;
+            for(float i = 0; i < 50; i++) {
+             if(i < used_ram_in_percent / 2) {
+               cout << "#";
+             } else {
+               cout << " ";
+             }
+            }
+            cout << "] "
+                << search->second.ram_usage.in_use
+                << "/"
+                << search->second.ram_usage.available
+                << endl;
           }
-
           return sash::executed;
         }
       }
