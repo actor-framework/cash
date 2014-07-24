@@ -108,6 +108,7 @@ file(GLOB ACTORSHELL_HDRS
 # list cpp files including platform-dependent files
 set(ACTORSHELL_SRC
     src/main.cpp
+    src/global_mode.cpp
     src/shell_actor.cpp)
 
 find_package(Libcaf COMPONENTS core io REQUIRED)

@@ -22,6 +22,7 @@
 #include <iomanip>
 
 #include "caf/all.hpp"
+#include "caf/shell/test_nodes.hpp"
 #include "sash/sash.hpp"
 #include "sash/libedit_backend.hpp" // our backend
 #include "sash/variables_engine.hpp"
@@ -42,33 +43,38 @@ struct node_data {
     probe_event::ram_usage ram_usage;
 };
 */
-node_data node_d1 {{node_id(42, "afafafafafafafafafafafafafafafafafafafaf"),
-                   {{2,2300}}},
-                   {0, 5, 3},
-                   {512, 1024}};
+// TEST ends
 
-node_data node_d2 {{node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-                   {{4,1500}, {32,3500}}},
-                   {10, 20, 3},
-                   {1024, 8096}};
+using char_iter = string::const_iterator;
 
-node_data node_d3 {{node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-                   {{4,1500}, {8,2500}, {64,5500}}},
-                   {23, 20, 3},
-                   {1024, 8096}};
+inline bool empty(string& err, char_iter first, char_iter last) {
+  if (first != last) {
+    err = "to many arguments (none expected).";
+    return false;
+  }
+  return true;
+}
+
+/// @param percent of progress.
+/// @param filling sign. default is #
+/// @param amout of signs. default is 50.
+/// @returns graphical progress bar.
+string progressbar(int percent, char sign = '#', int amount = 50) {
+  if(percent > 100 || percent < 0) {
+    return "[ERROR]: Invalid percent in progressbar";
+  }
+  stringstream s;
+  s << "["
+    << left << setw(amount)
+    << string(percent, sign)
+    << "] " << right << flush;
+  return s.str();
+}
 
 int main() {
   using sash::command_result;
-  using char_iter = string::const_iterator;
   using cli_type = sash::sash<sash::libedit_backend>::type;
   map<node_id, node_data>   known_nodes;
-  known_nodes.emplace(node_id(42, "afafafafafafafafafafafafafafafafafafafaf"),
-                      node_d1);
-  known_nodes.emplace(node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-                      node_d2);
-
-  known_nodes.emplace(node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-                      node_d3);
   list<node_id>             visited_nodes;
   cli_type                  cli;
   string                    line;
@@ -79,17 +85,17 @@ int main() {
   cli.mode_push("global");
   auto engine = sash::variables_engine<>::create();
   cli.add_preprocessor(engine->as_functor());
-  //cli.add_preprocessor(sash::variables_engine<>::create());
+  engine->set("$NODE-HIST", "10");
   vector<cli_type::mode_type::cmd_clause> global_cmds {
       {
         "quit", "terminates the whole thing.",
         [&](string& err, char_iter first, char_iter last) -> command_result {
-          if (first == last) {
-            done = true;
-            return sash::executed;
+          if (first != last) {
+            err = "quit: to many arguments (none expected).";
+            return sash::no_command;
           }
-          err = "quit: to many arguments (none expected).";
-          return sash::no_command;
+          done = true;
+          return sash::executed;
         }
       },
       {
@@ -101,30 +107,52 @@ int main() {
         }
       },
       {
+        "clear", "clears screen.",
+        [](string& err, char_iter, char_iter) {
+          err = "Implementation so far to clear screen: 'ctrl + l'.";
+          return sash::no_command;
+        }
+      },
+      {
         "help", "prints this text",
         [&](string& err, char_iter first, char_iter last) -> command_result {
-          if (first == last) {
-            // doin' it complicated!
-            std::string cmd = "echo ";
-            cmd += cli.current_mode().help();
-            return cli.process(cmd);
+          if (!empty(err, first, last)) {
+            return sash::no_command;
           }
-          err = "help: to many arguments (none expected).";
-          return sash::no_command;
+          // doin' it complicated!
+          string cmd = "echo ";
+          cmd += cli.current_mode().help();
+          return cli.process(cmd);
+        }
+      },
+      {
+        "test-nodes", "loads static dummy-nodes.",
+        [&](string& err, char_iter first, char_iter last) -> command_result {
+          if (!empty(err,first,last)) {
+            return sash::no_command;
+          }
+          auto nodes = test_nodes();
+          for(auto kvp : nodes) {
+            known_nodes.emplace(kvp.first, kvp.second);
+          }
+          return sash::executed;
         }
       },
       {
         "list-nodes", "prints all available nodes.",
         [&](string& err, char_iter first, char_iter last) -> command_result {
-          if(first != last) {
-            err = "list-nodes: to many arguments (none expected).";
+          if (!empty(err, first, last)) {
+            return sash::no_command;
           }
-          if(!known_nodes.empty()) {
-            for(auto itr = known_nodes.begin(); itr!=known_nodes.end(); itr++) {
-              cout << to_string(itr->first) << endl;
+          if (known_nodes.empty()) {
+            cout << "--- no nodes available ---"
+                 << endl;
+          }
+          else {
+            for (const auto& kvp : known_nodes) {
+              cout << to_string(kvp.first)
+                   << endl;
             }
-          } else {
-            cout << "no nodes available."  << endl;
           }
           return sash::executed;
         }
@@ -132,28 +160,26 @@ int main() {
       {
         "change-node", "similar to directorys you can switch between nodes.",
         [&](string& err, char_iter first, char_iter last) -> command_result {
+          if (first == last) {
+            err = "change-node: no node given";
+            return sash::no_command;
+          }
           auto input_node = from_string<node_id>(string(first, last));
-          if(input_node) {
-            bool is_in = false;
-            for(auto itr = known_nodes.begin(); itr!=known_nodes.end(); itr++) {
-              if(input_node == itr->first) {
-                is_in = true;
-              }
+          if (!input_node) {
+            err = "change-node: invalid node-id. ";
+            return sash::no_command;
+          }
+          if (known_nodes.count(*input_node) == 0) {
+            err = "change-node: node-id is unknown";
+            return sash::no_command;
+          }
+          auto& in = *input_node;
+          if (visited_nodes.back() != in) {
+            engine->set("NODE", to_string(in));
+            visited_nodes.push_back(in);
+            if (cli.current_mode().name() != "node")  {
+              cli.mode_push("node");
             }
-            if(is_in) {
-              if(!(visited_nodes.back() == *input_node)) {
-                engine->set("node", to_string(*input_node));
-                visited_nodes.push_back(*input_node);
-              }
-            } else {
-              err = "Node-id is unknown";
-              return sash::no_command;
-            }
-            // update prompt
-            cli.mode_push("node");
-          } else {
-             err = "Invalid node-id. ";
-             return sash::no_command;
           }
           return sash::executed;
         }
@@ -161,13 +187,16 @@ int main() {
       {
         "whereami", "prints current node you are located at.",
         [&](string& err, char_iter first, char_iter last) -> command_result {
-          if(visited_nodes.empty()) {
+          if (!empty(err, first, last)) {
+            return sash::no_command;
+          }
+          if (visited_nodes.empty()) {
             err = "You are currently in globalmode. You can select a node"
                   " with 'change-node <node-id>'.";
             return sash::no_command;
-            } else {
-              cout << "Node: " << to_string(visited_nodes.back()) << endl;
-            }
+          }
+          cout << "Node: " << to_string(visited_nodes.back())
+               << endl;
           return sash::executed;
         }
       }
@@ -176,17 +205,24 @@ int main() {
       {
         "leave-node", "returns to global mode",
         [&](string& err, char_iter first, char_iter last) -> command_result {
+          if (!empty(err, first, last)) {
+            return sash::no_command;
+          }
           visited_nodes = list<node_id>();
           cli.mode_pop();
-          cout << "Leaving node-mode..." << endl;
+          cout << "Leaving node-mode..."
+               << endl;
+          engine->unset("NODE");
+          return sash::executed;
         }
       },
       {
         "whereiwas", "prints all node-ids visited starting with least.",
-        [&](string& err, char_iter first, char_iter last) -> command_result {
+        [&](string&, char_iter, char_iter) -> command_result {
           int i = visited_nodes.size();
-          for(auto node : visited_nodes) {
-            cout << i << ": " << to_string(node) << endl;
+          for (const auto& node : visited_nodes) {
+            cout << i << ": " << to_string(node)
+                 << endl;
             i--;
           }
           return sash::executed;
@@ -195,37 +231,69 @@ int main() {
       {
         "back", "changes location to previous node.",
         [&](string& err, char_iter first, char_iter last) -> command_result {
-          if(first == last) {
-            if(visited_nodes.size() <= 1) {
-              cout << "Leaving node-mode..." << endl;
-              cli.mode_pop();
-            }
-            visited_nodes.pop_back();
-            return sash::executed;
-          } else {
-            err = "list-nodes: to many arguments (none expected).";
+          if (!empty(err, first, last)) {
             return sash::no_command;
           }
+          if (visited_nodes.size() <= 1) {
+            cout << "Leaving node-mode..."
+                 << endl;
+            engine->unset("NODE");
+            cli.mode_pop();
+          }
+          visited_nodes.pop_back();
+          return sash::executed;
         }
       },
       {
-        "statistics", "prints current RAM and CPU statistics of current node.",
-        [&](string& err, char_iter, char_iter) -> command_result {
+        "work-load", "prints two bars for CPU and RAM.",
+        [&](string& err, char_iter first, char_iter last) -> command_result {
+          if(!empty(err, first, last)) {
+            return sash::no_command;
+          }
           auto search = known_nodes.find(visited_nodes.back());
-          if(search != known_nodes.end()) {
+          cout << "CPU: "
+               << progressbar(search->second.work_load.cpu_load / 2, '#')
+               << static_cast<int>(search->second.work_load.cpu_load) << "%"
+               << endl;
+          // ram_usage
+          auto used_ram_in_percent =
+          static_cast<size_t>((search->second.ram_usage.in_use * 100.0)
+                               / search->second.ram_usage.available);
+          cout << "RAM: "
+               << progressbar(used_ram_in_percent / 2, '#')
+               << search->second.ram_usage.in_use
+               << "/"
+               << search->second.ram_usage.available
+               << endl;
+        }
+      },
+      {
+        "statistics", "prints statistics of current node.",
+        [&](string&, char_iter, char_iter) -> command_result {
+          auto search = known_nodes.find(visited_nodes.back());
+          if (search != known_nodes.end()) {
             // node_info
-            cout << setw(20) << "Node-ID: "
-                 << setw(46) << to_string((search->second.node_info.id))
-                 << endl ;
-            cout << setw(20) << "CPU statistics: "
+            cout << setw(21) << "Node-ID:  "
+                 << setw(50) << left
+                 << to_string((search->second.node_info.id)) << right
+                 << endl
+                 << setw(21) << "Hostname:  "
+                 << search->second.node_info.hostname
+                 << endl
+                 << setw(21) << "Operationsystem:  "
+                 << search->second.node_info.os
+                 << endl
+                 << setw(20) << "CPU statistics: "
                  << setw(3)  << "#"
                  << setw(10) << "Core No"
-                 << setw(12) << "MHz/Core" << endl;
+                 << setw(12) << "MHz/Core"
+                 << endl;
               int i = 1;
-              for(cpu_info cpu : search->second.node_info.cpu) {
+              for (const auto& cpu : search->second.node_info.cpu) {
                 cout << setw(23) << i
                      << setw(10) << cpu.num_cores
-                     << setw(12) << cpu.mhz_per_core << endl;
+                     << setw(12) << cpu.mhz_per_core
+                     << endl;
                 i++;
               }
             // work_load
@@ -236,34 +304,22 @@ int main() {
                  << setw(3)  << search->second.work_load.num_actors
                  << endl
                  << setw(20) << "CPU: "
-                 << setw(2)  << "[";
-            for(float i = 0; i < 50; i++) {
-              if(i < search->second.work_load.cpu_load / 2) {
-                cout << "#";
-              } else {
-                cout << " ";
-              }
-            }
-            cout << "] "
-                 << int(search->second.work_load.cpu_load) << "%" << endl;
+                 << setw(2)
+                 << progressbar(search->second.work_load.cpu_load/2, '#')
+                 << " "
+                 << static_cast<int>(search->second.work_load.cpu_load) << "%"
+                 << endl;
             // ram_usage
+            auto used_ram_in_percent =
+              static_cast<size_t>((search->second.ram_usage.in_use * 100.0)
+                                  / search->second.ram_usage.available);
             cout << setw(20) << "RAM: "
-                 << setw(2)  << "[";
-            float used_ram_in_percent= float(search->second.ram_usage.in_use)
-                                     / float(search->second.ram_usage.available)
-                                     * 100;
-            for(float i = 0; i < 50; i++) {
-             if(i < used_ram_in_percent / 2) {
-               cout << "#";
-             } else {
-               cout << " ";
-             }
-            }
-            cout << "] "
-                << search->second.ram_usage.in_use
-                << "/"
-                << search->second.ram_usage.available
-                << endl;
+                 << setw(2)
+                 << progressbar(used_ram_in_percent / 2, '#')
+                 << search->second.ram_usage.in_use
+                 << "/"
+                 << search->second.ram_usage.available
+                 << endl;
           }
           return sash::executed;
         }
