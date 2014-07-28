@@ -35,22 +35,12 @@ using namespace caf;
 using namespace probe_event;
 using namespace caf::shell;
 
-// Test purporses:
-/*
-struct node_data {
-    probe_event::node_info node_info;
-    probe_event::work_load work_load;
-    probe_event::ram_usage ram_usage;
-};
-*/
-// TEST ends
-
 using char_iter = string::const_iterator;
 
 inline bool empty(string& err, char_iter first, char_iter last) {
   if (first != last) {
     err = "to many arguments (none expected).";
-    return false;
+    return false;;
   }
   return true;
 }
@@ -58,9 +48,8 @@ inline bool empty(string& err, char_iter first, char_iter last) {
 /// @param percent of progress.
 /// @param filling sign. default is #
 /// @param amout of signs. default is 50.
-/// @returns graphical progress bar.
 string progressbar(int percent, char sign = '#', int amount = 50) {
-  if(percent > 100 || percent < 0) {
+  if (percent > 100 || percent < 0) {
     return "[ERROR]: Invalid percent in progressbar";
   }
   stringstream s;
@@ -85,7 +74,7 @@ int main() {
   cli.mode_push("global");
   auto engine = sash::variables_engine<>::create();
   cli.add_preprocessor(engine->as_functor());
-  engine->set("$NODE-HIST", "10");
+  engine->set("$NODEHIST", "10");
   vector<cli_type::mode_type::cmd_clause> global_cmds {
       {
         "quit", "terminates the whole thing.",
@@ -132,7 +121,7 @@ int main() {
             return sash::no_command;
           }
           auto nodes = test_nodes();
-          for(auto kvp : nodes) {
+          for (auto kvp : nodes) {
             known_nodes.emplace(kvp.first, kvp.second);
           }
           return sash::executed;
@@ -247,7 +236,7 @@ int main() {
       {
         "work-load", "prints two bars for CPU and RAM.",
         [&](string& err, char_iter first, char_iter last) -> command_result {
-          if(!empty(err, first, last)) {
+          if (!empty(err, first, last)) {
             return sash::no_command;
           }
           auto search = known_nodes.find(visited_nodes.back());
@@ -265,6 +254,7 @@ int main() {
                << "/"
                << search->second.ram_usage.available
                << endl;
+          return sash::executed;
         }
       },
       {

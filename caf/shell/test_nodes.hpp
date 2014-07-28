@@ -1,6 +1,6 @@
 
-#ifndef TEST_NODES
-#define TEST_NODES
+#ifndef CAF_SHELL_TEST_NODES_HPP
+#define CAF_SHELL_TEST_NODES_HPP
 
 #include <set>
 #include <iostream>
@@ -48,14 +48,12 @@ node_data node_d3 {{node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
 
 map<node_id, node_data> test_nodes() {
   map<node_id, node_data>   accu;
-  accu.emplace(node_id(42, "afafafafafafafafafafafafafafafafafafafaf"),
-               node_d1);
-  accu.emplace(node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-               node_d2);
-
-  accu.emplace(node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-               node_d3);
-  return accu;
+  return {  {node_id(42,   "afafafafafafafafafafafafafafafafafafafaf"),
+             node_d1},
+            {node_id(123,  "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
+             node_d2},
+            {node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
+             node_d3}};
 }
 
-#endif // TEST_NODES
+#endif // CAF_SHELL_TEST_NODES
