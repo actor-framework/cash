@@ -2,6 +2,3 @@
 	path = sash
 	url = https://github.com/Neverlord/sash.git
     
-[submodule "probe-events"]
-	path = probe-events
-	url = https://github.com/actor-framework/probe-events.git

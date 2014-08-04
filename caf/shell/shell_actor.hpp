@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "caf/all.hpp"
-#include "probe-events/caf/probe_event/probe_event.hpp"
+#include "caf/probe_event/all.hpp"
 
 namespace caf {
 namespace shell {
