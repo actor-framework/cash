@@ -23,13 +23,15 @@
 
 #include "caf/all.hpp"
 #include "caf/io/all.hpp"
+#include "caf/shell/args.hpp"
+#include "caf/probe_event/all.hpp"
 #include "caf/shell/test_nodes.hpp"
+#include "caf/shell/shell_actor.hpp"
+
 #include "sash/sash.hpp"
 #include "sash/libedit_backend.hpp" // our backend
 #include "sash/variables_engine.hpp"
 
-#include "caf/shell/shell_actor.hpp"
-#include "caf/probe_event/all.hpp"
 
 using namespace std;
 using namespace caf;
@@ -38,43 +40,6 @@ using namespace caf::shell;
 
 using char_iter = string::const_iterator;
 
-// arguments
-struct net_config {
-  uint16_t port;
-  std::string host;
-  inline net_config() : port(0) { }
-  inline bool valid() const {
-    return port != 0 && !host.empty();
-  }
-};
-
-const char host_arg[] = "--caf_nexus_host=";
-const char port_arg[] = "--caf_nexus_port=";
-
-template<size_t Size>
-bool is_substr(const char (&needle)[Size], const char* haystack) {
-  // compare without null terminator
-  if (strncmp(needle, haystack, Size - 1) == 0) {
-    return true;
-  }
-  return false;
-}
-
-template<size_t Size>
-size_t cstr_len(const char (&)[Size]) {
-  return Size - 1;
-}
-
-void from_args(net_config& conf, int argc, char** argv) {
-  for (auto i = argv; i != argv + argc; ++i) {
-    if (is_substr(host_arg, *i)) {
-      conf.host.assign(*i + cstr_len(host_arg));
-    } else if (is_substr(port_arg, *i)) {
-      int p = std::stoi(*i + cstr_len(port_arg));
-      conf.port = static_cast<uint16_t>(p);
-    }
-  }
-}
 
 inline bool empty(string& err, char_iter first, char_iter last) {
   if (first != last) {
@@ -84,7 +49,7 @@ inline bool empty(string& err, char_iter first, char_iter last) {
   return true;
 }
 
-
+// TODO: refactor to view_actor
 /**
  * @param percent of progress.
  * @param filling sign. default is #
@@ -105,6 +70,7 @@ string progressbar(int percent, char sign = '#', int amount = 50) {
 int main(int argc, char** argv) {
   announce_types(); // probe_event types
   announce<string>();
+  announce<vector<node_data>>();
   net_config config;
   from_args(config, argc, argv);
   if(!config.valid()) {
@@ -115,15 +81,15 @@ int main(int argc, char** argv) {
     return 42;
   }
   { // scope of self
-    using sash::command_result;
-    using cli_type = sash::sash<sash::libedit_backend>::type;
-    cli_type                  cli;
-    string                    line;
     scoped_actor              self;
     auto                      shellactor   = spawn<shell_actor>();
     auto nex = io::typed_remote_actor<probe_event::nexus_type>(config.host,
                                                                config.port);
     anon_send(nex, probe_event::add_listener{shellactor});
+    using sash::command_result;
+    using cli_type = sash::sash<sash::libedit_backend>::type;
+    cli_type                  cli;
+    string                    line;
     auto                      global_mode  = cli.mode_add("global", " $ ");
     auto                      node_mode    = cli.mode_add("node"  , " $ ");
     bool                      done         = false;
@@ -190,7 +156,7 @@ int main(int argc, char** argv) {
             return cli.process(cmd);
           }
         },
-        {
+        { // TODO: use nexus communication to add test nodes
           "test-nodes", "loads static dummy-nodes.",
           [&](string& err, char_iter first, char_iter last) -> command_result {
             if (!empty(err,first,last)) {
@@ -210,8 +176,13 @@ int main(int argc, char** argv) {
               return sash::no_command;
             }
             self->sync_send(shellactor, atom("GetNodes")).await(
-              [](std::vector<node_data>& ) {
-                // ... output ...
+              [](std::vector<node_data>& nodes) {
+                if(nodes.empty()) {
+                  cout << " no nodes avaliable." << endl;
+                }
+                for (auto& nd : nodes) {
+                  cout << to_string(nd.node_info.source_node) << endl;
+                }
               }
             );
             return sash::executed;
@@ -342,20 +313,19 @@ int main(int argc, char** argv) {
             }
             return sash::no_command;
           }
-        }/*, TODO: statistics doesn't print!
+        }, // TODO: statistics doesn't print!
         {
           "statistics", "prints statistics of current node.",
           [&](string& err, char_iter first, char_iter last) -> command_result {
-            if(empty(err, first, last)) {
+            if(!empty(err, first, last)) {
               return sash::no_command;
             }
             auto nd = get_node_data(err);
             if (nd) {
-              cout << "here" << endl;
               // node_info
               cout << setw(21) << "Node-ID:  "
                    << setw(50) << left
-                   << to_string((nd->node_info.id)) << right
+                   << to_string((nd->node_info.source_node)) << right
                    << endl
                    << setw(21) << "Hostname:  "
                    << nd->node_info.hostname
@@ -404,7 +374,7 @@ int main(int argc, char** argv) {
             }
             return sash::no_command;
           }
-        }*/
+        }
     };
     global_mode->add_all(global_cmds);
     node_mode->add_all(global_cmds);

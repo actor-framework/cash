@@ -22,12 +22,12 @@ bool shell_actor::is_known(const node_id& id) {
  * @return true when node_id wasn't known and has been added.
  */
 bool shell_actor::add(const node_info& ni) {
-  if (is_known(ni.id)) {
+  if (is_known(ni.source_node)) {
     return false;
   }
   node_data nd;
   nd.node_info = ni;
-  m_known_nodes.emplace(ni.id, nd);
+  m_known_nodes.emplace(ni.source_node, nd);
   return true;
 }
 
@@ -65,21 +65,24 @@ bool shell_actor::add(const node_id& id, const ram_usage& ru) {
 
 behavior shell_actor::make_behavior() {
   return {
+    // nexus communication
     [=](const probe_event::new_message& ) {
-      aout(this) << "new message" << endl;
+      //aout(this) << "new message" << endl;
     },
     [=](const probe_event::new_route& nr) {
-      aout(this) << "new message" << endl;
+      //aout(this) << "new message" << endl;
     },
     [=](const probe_event::node_info& ni) {
+      aout(this) << "new node_info" << endl;
       add(ni);
     },
     [=](const probe_event::work_load& wl) {
-      add(wl.source, wl);
+      add(wl.source_node, wl);
     },
     [=](const probe_event::ram_usage& ru) {
-      add(ru.source, ru);
+      add(ru.source_node, ru);
     },
+    // shell communication
     on(atom("AddTest"), arg_match) >> [&](node_id id, node_data data) {
       m_known_nodes.emplace(id, data);
     },
@@ -91,6 +94,7 @@ behavior shell_actor::make_behavior() {
       }
       return result;
     },
+    // TODO: refactor to main
     on(atom("ChangeNode"), arg_match) >> [&](node_id input_node) {
       if (m_known_nodes.empty()) {
         return make_message(atom("cnfail"), string("No nodes known."));

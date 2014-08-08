@@ -15,6 +15,10 @@ struct node_data {
     probe_event::ram_usage ram_usage;
 };
 
+inline bool operator ==(const node_data& lhs, const node_data& rhs) {
+  return (lhs.node_info == rhs.node_info);
+}
+
 /*
 struct get_all_nodes {};
 struct get_node{ node_id id; };
@@ -23,8 +27,10 @@ using shell_actor_t = probe_event::sink::extend<
                         replies_to<get_all_nodes>::with<std::vector<node_data>>,
                         replies_to<get_node>::with<optional<node_data>>
                       >::type;
+using shell_actor = probe_event::sink::extend<reacts_to<get_all_nodes>,
+                                              reacts_to<get_node>,
+                                              reacts_to<probe_event::
 */
-
 class shell_actor : public event_based_actor {
  public:
   shell_actor();
