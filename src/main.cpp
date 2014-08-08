@@ -102,38 +102,6 @@ string progressbar(int percent, char sign = '#', int amount = 50) {
   return s.str();
 }
 
-/**
- * @brief get_node_info
- * @param self - scoped actor
- * @param sa - shellactor
- * @param err
- * @returns node_data when sa has
- */
-optional<node_data> get_node_data(const scoped_actor& self,
-                                  const actor& sa,
-                                  string& err) {
-  node_data nd;
-  bool valid = true;
-  self->sync_send(sa, atom("nodedata")).await(
-    on(atom("ndcorrect"), arg_match) >> [&](node_info ni_,
-                                            work_load wl_,
-                                            ram_usage ru_) {
-      nd.node_info = ni_;
-      nd.ram_usage = ru_;
-      nd.work_load = wl_;
-    },
-    on(atom("ndfail"), arg_match) >> [&](const string& msg) {
-      err = msg;
-      valid = false;
-    }
-  );
-  if(valid){
-    return nd;
-  } else {
-    return none;
-  }
-}
-
 int main(int argc, char** argv) {
   announce_types(); // probe_event types
   announce<string>();
@@ -162,6 +130,25 @@ int main(int argc, char** argv) {
     cli.mode_push("global");
     auto engine = sash::variables_engine<>::create();
     cli.add_preprocessor(engine->as_functor());
+    auto get_node_data = [&](string& err) -> optional<node_data> {
+      node_data nd;
+      bool valid = true;
+      self->sync_send(shellactor, atom("NodeData")).await(
+        [&](node_info ni_, work_load wl_, ram_usage ru_) {
+          nd.node_info = ni_;
+          nd.ram_usage = ru_;
+          nd.work_load = wl_;
+        },
+        [&](string& msg) {
+          err = std::move(msg);
+          valid = false;
+        }
+      );
+      if (valid) {
+        return nd;
+      }
+      return none;
+    };
     //TODO add sleep(N)
     vector<cli_type::mode_type::cmd_clause> global_cmds {
         {
@@ -171,9 +158,7 @@ int main(int argc, char** argv) {
               err = "quit: to many arguments (none expected).";
               return sash::no_command;
             }
-            self->sync_send(shellactor, atom("quit")).await(
-              on(atom("done")) >> [] { }
-            );
+            anon_send_exit(shellactor, exit_reason::user_shutdown);
             done = true;
             return sash::executed;
           }
@@ -213,7 +198,7 @@ int main(int argc, char** argv) {
             }
             auto nodes = test_nodes();
             for (auto kvp : nodes) {
-              self->send(shellactor, atom("add-test"), kvp.first, kvp.second);
+              self->send(shellactor, atom("AddTest"), kvp.first, kvp.second);
             }
             return sash::executed;
           }
@@ -224,8 +209,9 @@ int main(int argc, char** argv) {
             if (!empty(err, first, last)) {
               return sash::no_command;
             }
-            self->sync_send(shellactor, atom("list-nodes")).await(
-              on(atom("done")) >> [] {
+            self->sync_send(shellactor, atom("GetNodes")).await(
+              [](std::vector<node_data>& ) {
+                // ... output ...
               }
             );
             return sash::executed;
@@ -244,7 +230,7 @@ int main(int argc, char** argv) {
               return sash::no_command;
             }
             bool valid = true;
-            self->sync_send(shellactor, atom("changenode"), *input_node).await(
+            self->sync_send(shellactor, atom("ChangeNode"), *input_node).await(
               on(atom("cnfail"), arg_match) >> [&](const string& msg) {
                 err = msg;
                 valid = false;
@@ -266,7 +252,7 @@ int main(int argc, char** argv) {
               return sash::no_command;
             }
             auto res = sash::executed;
-            self->sync_send(shellactor, atom("whereami")).await(
+            self->sync_send(shellactor, atom("WhereAmI")).await(
               on(atom("waifail"), arg_match) >> [&](const string& msg) {
                 err = msg;
                 res = sash::no_command;
@@ -286,7 +272,7 @@ int main(int argc, char** argv) {
             if (!empty(err, first, last)) {
               return sash::no_command;
             }
-            self->sync_send(shellactor, atom("leave-node"));
+            self->sync_send(shellactor, atom("LeaveNode"));
             cli.mode_pop();
             cout << "Leaving node-mode..."
                  << endl;
@@ -318,7 +304,7 @@ int main(int argc, char** argv) {
             if (!empty(err, first, last)) {
               return sash::no_command;
             }
-            self->sync_send(shellactor, atom("back")).await(
+            self->sync_send(shellactor, atom("Back")).await(
               on(atom("leave")) >> [&]() {
                 cli.mode_pop();
                 engine->unset("NODE");
@@ -336,7 +322,7 @@ int main(int argc, char** argv) {
             if (!empty(err, first, last)) {
               return sash::no_command;
             }
-            auto nd = get_node_data(self, shellactor, err);
+            auto nd = get_node_data(err);
             if(nd) {
               cout << "CPU: "
                    << progressbar(nd->work_load.cpu_load / 2, '#')
@@ -363,7 +349,7 @@ int main(int argc, char** argv) {
             if(empty(err, first, last)) {
               return sash::no_command;
             }
-            auto nd = get_node_data(self, shellactor, err);
+            auto nd = get_node_data(err);
             if (nd) {
               cout << "here" << endl;
               // node_info

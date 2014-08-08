@@ -3,57 +3,89 @@
 #define CAF_SHELL_TEST_NODES_HPP
 
 #include <set>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 #include "caf/all.hpp"
-#include "sash/sash.hpp"
-#include "sash/libedit_backend.hpp" // our backend
-#include "sash/variables_engine.hpp"
-
 #include "caf/shell/shell_actor.hpp"
-//#include "probe-events/caf/probe_event/probe_event.hpp"
 
 using namespace std;
 using namespace caf;
 using namespace probe_event;
 using namespace caf::shell;
 
-
-node_data node_d1 {{node_id(42, "afafafafafafafafafafafafafafafafafafafaf"),
-                   {{2,2300}},
-                   "Sokrates", "MACOS",
-                   {{"00:00:FF:FF:92:00", "192.168.1.12",
-                   {"IPv6 a", "IPv6 b", "IPv6 c"}},
-                   {"AC:10:FF:0F:9A:00", "192.168.1.12",
-                   {}}}},
-                   {0, 5, 3},
-                   {512, 1024}};
-
-node_data node_d2 {{node_id(123, "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-                   {{4,1500}, {32,3500}},
-                   "Planton", "Linux",
-                   {{"00:00:FF:FF:00:00", "192.168.1.32",
-                   {"IPv6 a"}}}},
-                   {10, 20, 3},
-                   {1024, 8096}};
-
-node_data node_d3 {{node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-                   {{4,1500}, {8,2500}, {64,5500}},
-                   "hostname123", "Useless-OS",
-                   {{"00:00:FF:FF:00:00", "192.168.1.99",
-                   {"IPv6 a", "IPv6 b"}}}},
-                   {23, 20, 3},
-                   {1024, 8096}};
-
 map<node_id, node_data> test_nodes() {
-  map<node_id, node_data>   accu;
-  return {  {node_id(42,   "afafafafafafafafafafafafafafafafafafafaf"),
-             node_d1},
-            {node_id(123,  "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-             node_d2},
-            {node_id(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf"),
-             node_d3}};
+  node_id n1(42,   "afafafafafafafafafafafafafafafafafafafaf");
+  node_id n2(123,  "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf");
+  node_id n3(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf");
+  return {
+    {
+      n1,
+      {
+        probe_event::node_info{
+          n1,
+          {{n1, 2, 2300}},
+          "Sokrates", "MACOS",
+          {
+            {
+              n1,
+              "00:00:FF:FF:92:00",
+              "192.168.1.12",
+              {"IPv6 a", "IPv6 b", "IPv6 c"}
+            },
+            {
+              n1,
+              "AC:10:FF:0F:9A:00",
+              "192.168.1.12",
+              {}
+            }
+          }
+        },
+        probe_event::work_load{n1, 0, 5, 3},
+        probe_event::ram_usage{n1, 512, 1024}
+      }
+    },
+    {
+      n2,
+      {
+        probe_event::node_info{
+          n2,
+          {{n2, 4, 1500}, {n2, 32, 3500}},
+          "Planton",  "Linux",
+          {
+            {
+              n2,
+              "00:00:FF:FF:00:00",
+              "192.168.1.32",
+              {"IPv6 a"}
+            }
+          }
+        },
+        probe_event::work_load{n2, 10, 20, 3},
+        probe_event::ram_usage{n2, 1024, 8096}
+      }
+    },
+    {
+      n3,
+      {
+        {
+          n3,
+          {{n3, 4, 1500}, {n3, 8, 2500}, {n3, 64, 5500}},
+          "hostname123", "Useless-OS",
+          {
+            {
+              n3,
+              "00:00:FF:FF:00:00",
+              "192.168.1.99",
+              {"IPv6 a", "IPv6 b"}
+            }
+          }
+        },
+        probe_event::work_load{n3, 23, 20, 3},
+        probe_event::ram_usage{n3, 1024, 8096}
+      }
+    }
+  };
 }
 
 #endif // CAF_SHELL_TEST_NODES

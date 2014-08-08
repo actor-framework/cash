@@ -15,6 +15,16 @@ struct node_data {
     probe_event::ram_usage ram_usage;
 };
 
+/*
+struct get_all_nodes {};
+struct get_node{ node_id id; };
+
+using shell_actor_t = probe_event::sink::extend<
+                        replies_to<get_all_nodes>::with<std::vector<node_data>>,
+                        replies_to<get_node>::with<optional<node_data>>
+                      >::type;
+*/
+
 class shell_actor : public event_based_actor {
  public:
   shell_actor();

@@ -65,43 +65,33 @@ bool shell_actor::add(const node_id& id, const ram_usage& ru) {
 
 behavior shell_actor::make_behavior() {
   return {
-    [=](const node_id& from, const probe_event::new_message& ) {
+    [=](const probe_event::new_message& ) {
       aout(this) << "new message" << endl;
     },
-    [=](const node_id& from, const probe_event::new_route& nr) {
+    [=](const probe_event::new_route& nr) {
       aout(this) << "new message" << endl;
     },
-    [=](const node_id& from, const probe_event::node_info& ni) {
+    [=](const probe_event::node_info& ni) {
       add(ni);
     },
-    [=](const node_id& from, const probe_event::work_load& wl) {
-      add(from, wl);
+    [=](const probe_event::work_load& wl) {
+      add(wl.source, wl);
     },
-    [=](const node_id& from, const probe_event::ram_usage& ru) {
-      add(from, ru);
+    [=](const probe_event::ram_usage& ru) {
+      add(ru.source, ru);
     },
-    // communication with shell
-    on(atom("quit")) >> [=] {
-      quit();
-      return make_message(atom("done"));
-    },
-    on(atom("add-test"), arg_match) >> [&](node_id id, node_data data) {
+    on(atom("AddTest"), arg_match) >> [&](node_id id, node_data data) {
       m_known_nodes.emplace(id, data);
     },
-    on(atom("list-nodes")) >> [&]() {
-      if (m_known_nodes.empty()) {
-        aout(this) << "--- no nodes available ---"
-                   << endl;
-      } else {
-        for (const auto& kvp : m_known_nodes) {
-          cout << setw(55)  << to_string(kvp.first)
-                     << " - "          << kvp.second.node_info.hostname
-                     << endl;
-        }
+    //[](const get_all_nodes&) -> std::vector<node_data> {
+    on(atom("GetNodes")) >> [&]() -> std::vector<node_data> {
+      std::vector<node_data> result;
+      for (const auto& kvp : m_known_nodes) {
+        result.push_back(kvp.second);
       }
-      return make_message(atom("done"));
+      return result;
     },
-    on(atom("changenode"), arg_match) >> [&](node_id input_node) {
+    on(atom("ChangeNode"), arg_match) >> [&](node_id input_node) {
       if (m_known_nodes.empty()) {
         return make_message(atom("cnfail"), string("No nodes known."));
       } else if (m_known_nodes.count(input_node) == 0) {
@@ -113,33 +103,31 @@ behavior shell_actor::make_behavior() {
         return make_message(atom("cncorrect"), input_node);
       }
     },
-    on(atom("whereami")) >> [=] {
-      if (m_visited_nodes.empty()) {
-        return make_message(atom("waifail"), "You are currently in globalmode. "
-                                             "You can select a node "
-                                             "with 'change-node <node_id>'.");
-      } else {
-        return make_message(atom("waicorrect"),
-                            to_string(m_visited_nodes.back()));
-      }
+    on(atom("WhereAmI")) >> [=] {
+      return m_visited_nodes.empty()
+          ? make_message(atom("waifail"), "You are currently in globalmode. "
+                                          "You can select a node "
+                                          "with 'change-node <node_id>'.")
+          : make_message(atom("waicorrect"),
+                         to_string(m_visited_nodes.back()));
     },
-    on(atom("nodedata")) >> [&] {
+    on(atom("NodeData")) >> [&]() -> message { // optional<node_data>
       auto search = m_known_nodes.find(m_visited_nodes.back());
       if (search != m_known_nodes.end()) {
         auto nd = search->second;
         auto ni = nd.node_info;
         auto wl = nd.work_load;
         auto ru = nd.ram_usage;
-        return make_message(atom("ndcorrect"), ni, wl, ru);
+        return make_message(ni, wl, ru);
       } else {
-        return make_message(atom("ndfail"), "Node not found");
+        return make_message("Node not found");
       }
     },
-    on(atom("leave-node")) >> [&] {
+    on(atom("LeaveNode")) >> [&] {
       m_visited_nodes = list<node_id>();
       return make_message(atom("done"));
     },
-    on(atom("back")) >> [&]() {
+    on(atom("Back")) >> [&]() {
       if (m_visited_nodes.size() <= 1) {
         m_visited_nodes = list<node_id>();
         return make_message(atom("leave"));
