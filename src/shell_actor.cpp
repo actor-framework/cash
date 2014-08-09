@@ -27,7 +27,7 @@ bool shell_actor::add(const node_info& ni) {
   }
   node_data nd;
   nd.node_info = ni;
-  m_known_nodes.emplace(ni.source_node, nd);
+  m_known_nodes.insert(std::make_pair(ni.source_node, nd));
   return true;
 }
 
@@ -43,7 +43,7 @@ bool shell_actor::add(const node_id& id, const work_load& wl) {
   }
   auto nd = kvp->second;
   nd.work_load = wl;
-  m_known_nodes.emplace(id, nd);
+  m_known_nodes.insert(std::make_pair(id, nd));
   return true;
 }
 
@@ -59,7 +59,7 @@ bool shell_actor::add(const node_id& id, const ram_usage& ru) {
   }
   auto nd = kvp->second;
   nd.ram_usage = ru;
-  m_known_nodes.emplace(id, nd);
+  m_known_nodes.insert(std::make_pair(id,nd));
   return true;
 }
 
@@ -84,7 +84,7 @@ behavior shell_actor::make_behavior() {
     },
     // shell communication
     on(atom("AddTest"), arg_match) >> [&](node_id id, node_data data) {
-      m_known_nodes.emplace(id, data);
+      m_known_nodes.insert(std::make_pair(id, data));
     },
     //[](const get_all_nodes&) -> std::vector<node_data> {
     on(atom("GetNodes")) >> [&]() -> std::vector<node_data> {
