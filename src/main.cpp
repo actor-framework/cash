@@ -73,8 +73,6 @@ int main(int argc, char** argv) {
   announce<vector<node_data>>();
   args::net_config config;
   args::from_args(config, argc, argv);
-  args::net_config config;
-  from_args(config, argc, argv);
   if(!config.valid()) {
     args::print_help();
     return 42;
@@ -148,21 +146,23 @@ int main(int argc, char** argv) {
             if (!empty(err, first, last)) {
               return sash::no_command;
             }
-            // doin' it complicated!
             string cmd = "echo ";
             cmd += cli.current_mode().help();
             return cli.process(cmd);
           }
         },
-        { // TODO: use nexus communication to add test nodes
+        {
           "test-nodes", "loads static dummy-nodes.",
           [&](string& err, char_iter first, char_iter last) -> command_result {
-            if (!empty(err,first,last)) {
+            if (empty(err, first, last)) {
               return sash::no_command;
             }
             auto nodes = test_nodes();
             for (auto kvp : nodes) {
-              self->send(shellactor, atom("AddTest"), kvp.first, kvp.second);
+              auto nd = kvp.second;
+              anon_send(shellactor, nd.node_info);
+              anon_send(shellactor, nd.work_load);
+              anon_send(shellactor, nd.ram_usage);
             }
             return sash::executed;
           }
@@ -383,7 +383,7 @@ int main(int argc, char** argv) {
             return sash::no_command;
           }
         },
-        {
+        { // TODO: adjust ipv6 output
           "interfaces", "show interface information.",
           [&](string& err, char_iter first, char_iter last) -> command_result {
             if(!empty(err, first, last)) {

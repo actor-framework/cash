@@ -1,5 +1,23 @@
-#include "caf/shell/shell_actor.hpp"
+/******************************************************************************
+ *                       ____    _    _____                                   *
+ *                      / ___|  / \  |  ___|    C++                           *
+ *                     | |     / _ \ | |_       Actor                         *
+ *                     | |___ / ___ \|  _|      Framework                     *
+ *                      \____/_/   \_|_|                                      *
+ *                                                                            *
+ * Copyright (C) 2011 - 2014                                                  *
+ * Dominik Charousset <dominik.charousset (at) haw-hamburg.de>                *
+ *                                                                            *
+ * Distributed under the terms and conditions of the BSD 3-Clause License or  *
+ * (at your option) under the terms and conditions of the Boost Software      *
+ * License 1.0. See accompanying files LICENSE and LICENCE_ALTERNATIVE.       *
+ *                                                                            *
+ * If you did not receive a copy of the license files, see                    *
+ * http://opensource.org/licenses/BSD-3-Clause and                            *
+ * http://www.boost.org/LICENSE_1_0.txt.                                      *
+ ******************************************************************************/
 
+#include "caf/shell/shell_actor.hpp"
 
 namespace caf {
 
@@ -17,7 +35,6 @@ bool shell_actor::is_known(const node_id& id) {
 }
 
 /**
- * @brief shell_actor::add
  * @param ni - node_id
  * @return true when node_id wasn't known and has been added.
  */
@@ -32,9 +49,7 @@ bool shell_actor::add(const node_info& ni) {
 }
 
 /**
- * @brief shell_actor::add
  * @param wl - work_load
- * @return true when id was known and added or false when work_load drops.
  */
 bool shell_actor::set(const work_load& wl) {
   auto kvp = m_known_nodes.find(wl.source_node);
@@ -42,16 +57,11 @@ bool shell_actor::set(const work_load& wl) {
     return false;
   }
   kvp->second.work_load = wl;
-  auto nd = kvp->second;
-  nd.work_load = wl;
-  m_known_nodes.insert(std::make_pair(id, nd));
   return true;
 }
 
 /**
- * @brief shell_actor::add
  * @param ru - ram_usage
- * @return true when node_id wasn't known and has been added.
  */
 bool shell_actor::set(const ram_usage& ru) {
   auto kvp = m_known_nodes.find(ru.source_node);
@@ -59,10 +69,6 @@ bool shell_actor::set(const ram_usage& ru) {
     return false;
   }
   kvp->second.ram_usage = ru;
-  auto nd = kvp->second;
-  nd.ram_usage = ru;
-  m_known_nodes.insert(std::make_pair(id,nd));
-  return true;
 }
 
 behavior shell_actor::make_behavior() {
@@ -82,29 +88,16 @@ behavior shell_actor::make_behavior() {
       }
     },
     [=](const probe_event::work_load& wl) {
-      if (set(wl)) {
+      if (!set(wl)) {
         aout(this) << "droped work_load: " << to_string(wl.source_node)
                    << endl;
       }
     },
     [=](const probe_event::ram_usage& ru) {
-      if (set(ru)) {
+      if (!set(ru)) {
         aout(this) << "droped ram_usage: " << to_string(ru.source_node)
                    << endl;
       }
-    },
-    // shell communication
-    on(atom("AddTest"), arg_match) >> [&](node_id id, node_data data) {
-      add(data.node_info);
-      set(data.work_load);
-      set(data.ram_usage);
-      add(ni);
-    },
-    [=](const probe_event::work_load& wl) {
-      add(wl.source_node, wl);
-    },
-    [=](const probe_event::ram_usage& ru) {
-      add(ru.source_node, ru);
     },
     // shell communication
     on(atom("AddTest"), arg_match) >> [&](node_id id, node_data data) {
