@@ -1,3 +1,4 @@
+
 /******************************************************************************
  *                       ____    _    _____                                   *
  *                      / ___|  / \  |  ___|    C++                           *
@@ -31,6 +32,7 @@ struct net_config {
     return port != 0 && !host.empty();
   }
 };
+
 
 const char host_arg[] = "--caf-nexus-host=";
 const char port_arg[] = "--caf-nexus-port=";

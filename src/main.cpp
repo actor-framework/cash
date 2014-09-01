@@ -73,6 +73,8 @@ int main(int argc, char** argv) {
   announce<vector<node_data>>();
   args::net_config config;
   args::from_args(config, argc, argv);
+  args::net_config config;
+  from_args(config, argc, argv);
   if(!config.valid()) {
     args::print_help();
     return 42;
@@ -319,7 +321,7 @@ int main(int argc, char** argv) {
             }
             return sash::no_command;
           }
-        }, // TODO: statistics doesn't print!
+        },
         {
           "statistics", "prints statistics of current node.",
           [&](string& err, char_iter first, char_iter last) -> command_result {

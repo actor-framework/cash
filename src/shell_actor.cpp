@@ -42,6 +42,9 @@ bool shell_actor::set(const work_load& wl) {
     return false;
   }
   kvp->second.work_load = wl;
+  auto nd = kvp->second;
+  nd.work_load = wl;
+  m_known_nodes.insert(std::make_pair(id, nd));
   return true;
 }
 
@@ -56,6 +59,9 @@ bool shell_actor::set(const ram_usage& ru) {
     return false;
   }
   kvp->second.ram_usage = ru;
+  auto nd = kvp->second;
+  nd.ram_usage = ru;
+  m_known_nodes.insert(std::make_pair(id,nd));
   return true;
 }
 
@@ -92,6 +98,17 @@ behavior shell_actor::make_behavior() {
       add(data.node_info);
       set(data.work_load);
       set(data.ram_usage);
+      add(ni);
+    },
+    [=](const probe_event::work_load& wl) {
+      add(wl.source_node, wl);
+    },
+    [=](const probe_event::ram_usage& ru) {
+      add(ru.source_node, ru);
+    },
+    // shell communication
+    on(atom("AddTest"), arg_match) >> [&](node_id id, node_data data) {
+      m_known_nodes.insert(std::make_pair(id, data));
     },
     //[](const get_all_nodes&) -> std::vector<node_data> {
     on(atom("GetNodes")) >> [&]() -> std::vector<node_data> {
