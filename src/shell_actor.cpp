@@ -22,28 +22,26 @@ bool shell_actor::is_known(const node_id& id) {
  * @return true when node_id wasn't known and has been added.
  */
 bool shell_actor::add(const node_info& ni) {
-  if (is_known(ni.id)) {
+  if (is_known(ni.source_node)) {
     return false;
   }
   node_data nd;
   nd.node_info = ni;
-  m_known_nodes.emplace(ni.id, nd);
+  m_known_nodes.insert(std::make_pair(ni.source_node, nd));
   return true;
 }
 
 /**
  * @brief shell_actor::add
  * @param wl - work_load
- * @return true when node_id wasn't known and false when work_load drops.
+ * @return true when id was known and added or false when work_load drops.
  */
-bool shell_actor::add(const node_id& id, const work_load& wl) {
-  auto kvp = m_known_nodes.find(id);
+bool shell_actor::set(const work_load& wl) {
+  auto kvp = m_known_nodes.find(wl.source_node);
   if (kvp == m_known_nodes.end()) {
     return false;
   }
-  auto nd = kvp->second;
-  nd.work_load = wl;
-  m_known_nodes.emplace(id, nd);
+  kvp->second.work_load = wl;
   return true;
 }
 
@@ -52,36 +50,48 @@ bool shell_actor::add(const node_id& id, const work_load& wl) {
  * @param ru - ram_usage
  * @return true when node_id wasn't known and has been added.
  */
-bool shell_actor::add(const node_id& id, const ram_usage& ru) {
-  auto kvp = m_known_nodes.find(id);
+bool shell_actor::set(const ram_usage& ru) {
+  auto kvp = m_known_nodes.find(ru.source_node);
   if (kvp == m_known_nodes.end()) {
     return false;
   }
-  auto nd = kvp->second;
-  nd.ram_usage = ru;
-  m_known_nodes.emplace(id, nd);
+  kvp->second.ram_usage = ru;
   return true;
 }
 
 behavior shell_actor::make_behavior() {
   return {
+    // nexus communication
     [=](const probe_event::new_message& ) {
-      aout(this) << "new message" << endl;
+      //aout(this) << "new message" << endl;
     },
     [=](const probe_event::new_route& nr) {
-      aout(this) << "new message" << endl;
+      //aout(this) << "new message" << endl;
     },
     [=](const probe_event::node_info& ni) {
-      add(ni);
+      aout(this) << "new node_info" << endl;
+      if (!add(ni)) {
+        aout(this) << "droped node_info: " << to_string(ni.source_node)
+                   << endl;
+      }
     },
     [=](const probe_event::work_load& wl) {
-      add(wl.source, wl);
+      if (set(wl)) {
+        aout(this) << "droped work_load: " << to_string(wl.source_node)
+                   << endl;
+      }
     },
     [=](const probe_event::ram_usage& ru) {
-      add(ru.source, ru);
+      if (set(ru)) {
+        aout(this) << "droped ram_usage: " << to_string(ru.source_node)
+                   << endl;
+      }
     },
+    // shell communication
     on(atom("AddTest"), arg_match) >> [&](node_id id, node_data data) {
-      m_known_nodes.emplace(id, data);
+      add(data.node_info);
+      set(data.work_load);
+      set(data.ram_usage);
     },
     //[](const get_all_nodes&) -> std::vector<node_data> {
     on(atom("GetNodes")) >> [&]() -> std::vector<node_data> {
@@ -91,6 +101,7 @@ behavior shell_actor::make_behavior() {
       }
       return result;
     },
+    // TODO: refactor to main
     on(atom("ChangeNode"), arg_match) >> [&](node_id input_node) {
       if (m_known_nodes.empty()) {
         return make_message(atom("cnfail"), string("No nodes known."));

@@ -12,7 +12,7 @@ include_directories(. ${LIBCAF_INCLUDE_DIRS} sash/)
 file(GLOB CAF_SHELL_HDRS "caf/shell/*.hpp" "sash/sash/*.hpp")
 
 set(CAF_SHELL_SRCS
-    src/global_mode.cpp
+    src/view_actor.cpp
     src/main.cpp
     src/shell_actor.cpp)
 

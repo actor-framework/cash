@@ -17,54 +17,57 @@
  * http://www.boost.org/LICENSE_1_0.txt.                                      *
  ******************************************************************************/
 
-#ifndef CAF_SHELL_SHELL_ACTOR_HPP
-#define CAF_SHELL_SHELL_ACTOR_HPP
-
-#include <vector>
-
-#include "caf/all.hpp"
-#include "caf/probe_event/all.hpp"
+#ifndef CAF_SHELL_ARGS_H
+#define CAF_SHELL_ARGS_H
 
 namespace caf {
-namespace shell {
+namespace args {
 
-struct node_data {
-    probe_event::node_info node_info;
-    probe_event::work_load work_load;
-    probe_event::ram_usage ram_usage;
+struct net_config {
+  uint16_t port;
+  std::string host;
+  inline net_config() : port(0) { }
+  inline bool valid() const {
+    return port != 0 && !host.empty();
+  }
 };
 
-inline bool operator ==(const node_data& lhs, const node_data& rhs) {
-  return (lhs.node_info == rhs.node_info);
+const char host_arg[] = "--caf-nexus-host=";
+const char port_arg[] = "--caf-nexus-port=";
+
+template<size_t Size>
+bool is_substr(const char (&needle)[Size], const char* haystack) {
+  // compare without null terminator
+  if (strncmp(needle, haystack, Size - 1) == 0) {
+    return true;
+  }
+  return false;
 }
 
-/*
-struct get_all_nodes {};
-struct get_node{ node_id id; };
+template<size_t Size>
+size_t cstr_len(const char (&)[Size]) {
+  return Size - 1;
+}
 
-using shell_actor_t = probe_event::sink::extend<
-                        replies_to<get_all_nodes>::with<std::vector<node_data>>,
-                        replies_to<get_node>::with<optional<node_data>>
-                      >::type;
-using shell_actor = probe_event::sink::extend<reacts_to<get_all_nodes>,
-                                              reacts_to<get_node>,
-                                              reacts_to<probe_event::
-*/
-class shell_actor : public event_based_actor {
- public:
-  shell_actor();
-  bool is_known(const node_id& id);
-  bool add(const probe_event::node_info& ni);
-  bool set(const probe_event::work_load& wl);
-  bool set(const probe_event::ram_usage& ru);
-  behavior make_behavior() override;
+void from_args(net_config& conf, int argc, char** argv) {
+  for (auto i = argv; i != argv + argc; ++i) {
+    if (is_substr(host_arg, *i)) {
+      conf.host.assign(*i + cstr_len(host_arg));
+    } else if (is_substr(port_arg, *i)) {
+      int p = std::stoi(*i + cstr_len(port_arg));
+      conf.port = static_cast<uint16_t>(p);
+    }
+  }
+}
 
- private:
-  std::map<node_id, node_data>  m_known_nodes;
-  std::list<node_id>            m_visited_nodes;
-};
+void print_help() {
+  std::cerr << "Invalid arguments. Supported arguments are: "
+       << std::endl << host_arg
+       << std::endl << port_arg
+       << std::endl;
+}
 
-} // namespace shell
+} // namespace args
 } // namespace caf
 
-#endif // CAF_SHELL_SHELL_ACTOR_HPP
+#endif // CAF_SHELL_ARGS_H

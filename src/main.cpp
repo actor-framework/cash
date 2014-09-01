@@ -1,35 +1,38 @@
-/******************************************************************************\
- *                                                                            *
- *                 _
-               | |
-   ___ __ _ ___| |__
-  / __/ _` / __| '_ \
- | (_| (_| \__ \ | | |
-  \___\__,_|___/_| |_|
-
-
+/******************************************************************************
+ *                       ____    _    _____                                   *
+ *                      / ___|  / \  |  ___|    C++                           *
+ *                     | |     / _ \ | |_       Actor                         *
+ *                     | |___ / ___ \|  _|      Framework                     *
+ *                      \____/_/   \_|_|                                      *
  *                                                                            *
  * Copyright (C) 2011 - 2014                                                  *
  * Dominik Charousset <dominik.charousset (at) haw-hamburg.de>                *
- * Alex    Mantel     <alex.mantel        (at) haw-hamburg.de>                *
  *                                                                            *
- * Distributed under the Boost Software License, Version 1.0. See             *
- * accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt  *
-\******************************************************************************/
+ * Distributed under the terms and conditions of the BSD 3-Clause License or  *
+ * (at your option) under the terms and conditions of the Boost Software      *
+ * License 1.0. See accompanying files LICENSE and LICENCE_ALTERNATIVE.       *
+ *                                                                            *
+ * If you did not receive a copy of the license files, see                    *
+ * http://opensource.org/licenses/BSD-3-Clause and                            *
+ * http://www.boost.org/LICENSE_1_0.txt.                                      *
+ ******************************************************************************/
 
 #include <set>
-#include <iostream>
+#include <chrono>
+#include <thread>
 #include <iomanip>
+#include <iostream>
 
 #include "caf/all.hpp"
 #include "caf/io/all.hpp"
+#include "caf/shell/args.hpp"
+#include "caf/probe_event/all.hpp"
 #include "caf/shell/test_nodes.hpp"
+#include "caf/shell/shell_actor.hpp"
+
 #include "sash/sash.hpp"
 #include "sash/libedit_backend.hpp" // our backend
 #include "sash/variables_engine.hpp"
-
-#include "caf/shell/shell_actor.hpp"
-#include "caf/probe_event/all.hpp"
 
 using namespace std;
 using namespace caf;
@@ -37,44 +40,6 @@ using namespace probe_event;
 using namespace caf::shell;
 
 using char_iter = string::const_iterator;
-
-// arguments
-struct net_config {
-  uint16_t port;
-  std::string host;
-  inline net_config() : port(0) { }
-  inline bool valid() const {
-    return port != 0 && !host.empty();
-  }
-};
-
-const char host_arg[] = "--caf_nexus_host=";
-const char port_arg[] = "--caf_nexus_port=";
-
-template<size_t Size>
-bool is_substr(const char (&needle)[Size], const char* haystack) {
-  // compare without null terminator
-  if (strncmp(needle, haystack, Size - 1) == 0) {
-    return true;
-  }
-  return false;
-}
-
-template<size_t Size>
-size_t cstr_len(const char (&)[Size]) {
-  return Size - 1;
-}
-
-void from_args(net_config& conf, int argc, char** argv) {
-  for (auto i = argv; i != argv + argc; ++i) {
-    if (is_substr(host_arg, *i)) {
-      conf.host.assign(*i + cstr_len(host_arg));
-    } else if (is_substr(port_arg, *i)) {
-      int p = std::stoi(*i + cstr_len(port_arg));
-      conf.port = static_cast<uint16_t>(p);
-    }
-  }
-}
 
 inline bool empty(string& err, char_iter first, char_iter last) {
   if (first != last) {
@@ -84,7 +49,7 @@ inline bool empty(string& err, char_iter first, char_iter last) {
   return true;
 }
 
-
+// TODO: refactor to view_actor
 /**
  * @param percent of progress.
  * @param filling sign. default is #
@@ -105,25 +70,23 @@ string progressbar(int percent, char sign = '#', int amount = 50) {
 int main(int argc, char** argv) {
   announce_types(); // probe_event types
   announce<string>();
-  net_config config;
-  from_args(config, argc, argv);
+  announce<vector<node_data>>();
+  args::net_config config;
+  args::from_args(config, argc, argv);
   if(!config.valid()) {
-    cerr << "Invalid arguments. Supported arguments are: "
-         << endl << host_arg
-         << endl << port_arg
-         << endl;
+    args::print_help();
     return 42;
   }
   { // scope of self
-    using sash::command_result;
-    using cli_type = sash::sash<sash::libedit_backend>::type;
-    cli_type                  cli;
-    string                    line;
     scoped_actor              self;
     auto                      shellactor   = spawn<shell_actor>();
     auto nex = io::typed_remote_actor<probe_event::nexus_type>(config.host,
                                                                config.port);
     anon_send(nex, probe_event::add_listener{shellactor});
+    using sash::command_result;
+    using cli_type = sash::sash<sash::libedit_backend>::type;
+    cli_type                  cli;
+    string                    line;
     auto                      global_mode  = cli.mode_add("global", " $ ");
     auto                      node_mode    = cli.mode_add("node"  , " $ ");
     bool                      done         = false;
@@ -149,7 +112,6 @@ int main(int argc, char** argv) {
       }
       return none;
     };
-    //TODO add sleep(N)
     vector<cli_type::mode_type::cmd_clause> global_cmds {
         {
           "quit", "terminates the whole thing.",
@@ -190,7 +152,7 @@ int main(int argc, char** argv) {
             return cli.process(cmd);
           }
         },
-        {
+        { // TODO: use nexus communication to add test nodes
           "test-nodes", "loads static dummy-nodes.",
           [&](string& err, char_iter first, char_iter last) -> command_result {
             if (!empty(err,first,last)) {
@@ -210,8 +172,13 @@ int main(int argc, char** argv) {
               return sash::no_command;
             }
             self->sync_send(shellactor, atom("GetNodes")).await(
-              [](std::vector<node_data>& ) {
-                // ... output ...
+              [](std::vector<node_data>& nodes) {
+                if(nodes.empty()) {
+                  cout << " no nodes avaliable." << endl;
+                }
+                for (auto& nd : nodes) {
+                  cout << to_string(nd.node_info.source_node) << endl;
+                }
               }
             );
             return sash::executed;
@@ -220,8 +187,7 @@ int main(int argc, char** argv) {
         {
           "change-node", "similar to directorys you can switch between nodes.",
           [&](string& err, char_iter first, char_iter last) -> command_result {
-            if (first == last) {
-              err = "change-node: no node given";
+            if (empty(err, first, last)) {
               return sash::no_command;
             }
             auto input_node = from_string<node_id>(string(first, last));
@@ -262,6 +228,17 @@ int main(int argc, char** argv) {
               }
             );
             return res;
+          }
+        },
+        {
+          "sleep", "delay for n milliseconds",
+          [&](string& err, char_iter first, char_iter last) -> command_result {
+            if(empty(err, first, last)) {
+              return sash::no_command;
+            }
+            int time = stoi(string(first,last));
+            this_thread::sleep_for(chrono::milliseconds(time));
+            return sash::executed;
           }
         }
       };
@@ -342,25 +319,24 @@ int main(int argc, char** argv) {
             }
             return sash::no_command;
           }
-        }/*, TODO: statistics doesn't print!
+        }, // TODO: statistics doesn't print!
         {
           "statistics", "prints statistics of current node.",
           [&](string& err, char_iter first, char_iter last) -> command_result {
-            if(empty(err, first, last)) {
+            if(!empty(err, first, last)) {
               return sash::no_command;
             }
             auto nd = get_node_data(err);
             if (nd) {
-              cout << "here" << endl;
               // node_info
               cout << setw(21) << "Node-ID:  "
                    << setw(50) << left
-                   << to_string((nd->node_info.id)) << right
+                   << to_string((nd->node_info.source_node)) << right
                    << endl
                    << setw(21) << "Hostname:  "
                    << nd->node_info.hostname
                    << endl
-                   << setw(21) << "Operationsystem:  "
+                   << setw(21) << "Operatingsystem:  "
                    << nd->node_info.os
                    << endl
                    << setw(20) << "CPU statistics: "
@@ -404,7 +380,40 @@ int main(int argc, char** argv) {
             }
             return sash::no_command;
           }
-        }*/
+        },
+        {
+          "interfaces", "show interface information.",
+          [&](string& err, char_iter first, char_iter last) -> command_result {
+            if(!empty(err, first, last)) {
+              return sash::no_command;
+            }
+            auto nd = get_node_data(err);
+            if (!nd) {
+              err = "interfaces: unexpected error.";
+              return sash::no_command;
+            } else {
+              int intend = 8;
+              for (auto interface : nd->node_info.interfaces) {
+                cout << setw(intend) << "Name: "
+                     << interface.name
+                     << endl
+                     << setw(intend) << "MAC: "
+                     << interface.hw_addr
+                     << endl
+                     << setw(intend) << "IPv4: "
+                     << interface.ipv4_addr
+                     << endl
+                     << setw(intend) << "IPv6: ";
+                     for (auto ipv6 : interface.ipv6_addrs) {
+                       cout << ipv6
+                            << endl;
+                     }
+                     cout << endl;
+              }
+            }
+            return sash::executed;
+          }
+        }
     };
     global_mode->add_all(global_cmds);
     node_mode->add_all(global_cmds);

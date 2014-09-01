@@ -1,3 +1,21 @@
+/******************************************************************************
+ *                       ____    _    _____                                   *
+ *                      / ___|  / \  |  ___|    C++                           *
+ *                     | |     / _ \ | |_       Actor                         *
+ *                     | |___ / ___ \|  _|      Framework                     *
+ *                      \____/_/   \_|_|                                      *
+ *                                                                            *
+ * Copyright (C) 2011 - 2014                                                  *
+ * Dominik Charousset <dominik.charousset (at) haw-hamburg.de>                *
+ *                                                                            *
+ * Distributed under the terms and conditions of the BSD 3-Clause License or  *
+ * (at your option) under the terms and conditions of the Boost Software      *
+ * License 1.0. See accompanying files LICENSE and LICENCE_ALTERNATIVE.       *
+ *                                                                            *
+ * If you did not receive a copy of the license files, see                    *
+ * http://opensource.org/licenses/BSD-3-Clause and                            *
+ * http://www.boost.org/LICENSE_1_0.txt.                                      *
+ ******************************************************************************/
 
 #ifndef CAF_SHELL_TEST_NODES_HPP
 #define CAF_SHELL_TEST_NODES_HPP
@@ -29,12 +47,14 @@ map<node_id, node_data> test_nodes() {
           {
             {
               n1,
+              "eth0",
               "00:00:FF:FF:92:00",
               "192.168.1.12",
               {"IPv6 a", "IPv6 b", "IPv6 c"}
             },
             {
               n1,
+              "wlp1s3",
               "AC:10:FF:0F:9A:00",
               "192.168.1.12",
               {}
@@ -55,6 +75,7 @@ map<node_id, node_data> test_nodes() {
           {
             {
               n2,
+              "wlan0",
               "00:00:FF:FF:00:00",
               "192.168.1.32",
               {"IPv6 a"}
@@ -75,6 +96,7 @@ map<node_id, node_data> test_nodes() {
           {
             {
               n3,
+              "eno1",
               "00:00:FF:FF:00:00",
               "192.168.1.99",
               {"IPv6 a", "IPv6 b"}
