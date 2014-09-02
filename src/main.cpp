@@ -242,6 +242,24 @@ int main(int argc, char** argv) {
             this_thread::sleep_for(chrono::milliseconds(time));
             return sash::executed;
           }
+        },
+        {
+          "mailbox", "prints the current context of the shell's mailbox",
+          [&](string& err, char_iter first, char_iter last) -> command_result {
+            // TODO: implement me
+          }
+        },
+        {
+          "dequeue", "removes and prints an element from the mailbox",
+          [&](string& err, char_iter first, char_iter last) -> command_result {
+            // TODO: implement me
+          }
+        },
+        {
+          "pop-front", "removes and prints the oldest element from the mailbox",
+          [&](string& err, char_iter first, char_iter last) -> command_result {
+            // TODO: implement me
+          }
         }
       };
     vector<cli_type::mode_type::cmd_clause> node_cmds {
@@ -414,6 +432,12 @@ int main(int argc, char** argv) {
               }
             }
             return sash::executed;
+          },
+          {
+            "send", "sends a message to an actor",
+            [&](string& err, char_iter first, char_iter last) -> command_result {
+              // TODO: implement me
+            }
           }
         }
     };
