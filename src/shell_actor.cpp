@@ -114,9 +114,9 @@ behavior shell_actor::make_behavior() {
     // TODO: refactor to main
     on(atom("ChangeNode"), arg_match) >> [&](node_id input_node) {
       if (m_known_nodes.empty()) {
-        return make_message(atom("cnfail"), string("No nodes known."));
+        return make_message(atom("cnfail"), "No nodes known.");
       } else if (m_known_nodes.count(input_node) == 0) {
-        return make_message(atom("cnfail"), string("Given node is unkown."));
+        return make_message(atom("cnfail"), "Given node is unkown.");
       } else {
         if (m_visited_nodes.back() != input_node) {
           m_visited_nodes.push_back(input_node);
