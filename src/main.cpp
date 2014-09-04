@@ -49,7 +49,6 @@ inline bool empty(string& err, char_iter first, char_iter last) {
   return true;
 }
 
-// TODO: refactor to view_actor
 /**
  * @param percent of progress.
  * @param filling sign. default is #
@@ -66,6 +65,7 @@ string progressbar(int percent, char sign = '#', int amount = 50) {
     << "] " << right << flush;
   return s.str();
 }
+
 
 int main(int argc, char** argv) {
   announce_types(); // probe_event types
@@ -90,13 +90,14 @@ int main(int argc, char** argv) {
     auto                      global_mode  = cli.mode_add("global", " $ ");
     auto                      node_mode    = cli.mode_add("node"  , " $ ");
     bool                      done         = false;
+    vector<node_id>           visited_nodes;
     cli.mode_push("global");
     auto engine = sash::variables_engine<>::create();
     cli.add_preprocessor(engine->as_functor());
     auto get_node_data = [&](string& err) -> optional<node_data> {
       node_data nd;
       bool valid = true;
-      self->sync_send(shellactor, atom("NodeData")).await(
+      self->sync_send(shellactor, atom("NodeData"), visited_nodes.back()).await(
         [&](node_info ni_, work_load wl_, ram_usage ru_) {
           nd.node_info = ni_;
           nd.ram_usage = ru_;
@@ -197,20 +198,11 @@ int main(int argc, char** argv) {
               err = "change-node: invalid node-id. ";
               return sash::no_command;
             }
-            bool valid = true;
-            self->sync_send(shellactor, atom("ChangeNode"), *input_node).await(
-              on(atom("cnfail"), arg_match) >> [&](const string& msg) {
-                err = msg;
-                valid = false;
-              },
-              on(atom("cncorrect"), arg_match) >> [&](node_id id) {
-                engine->set("NODE", to_string(id));
-                if (cli.current_mode().name() != "node")  {
-                  cli.mode_push("node");
-                }
-              }
-            );
-            return valid ? sash::executed : sash::no_command;
+            // TODO: check if input_node is known to shell_actor
+            // TODO: check if input_node is current node
+            cli.mode_push("node");
+            visited_nodes.push_back(*input_node);
+            return sash::executed;
           }
         },
         {
@@ -219,17 +211,14 @@ int main(int argc, char** argv) {
             if (!empty(err, first, last)) {
               return sash::no_command;
             }
-            auto res = sash::executed;
-            self->sync_send(shellactor, atom("WhereAmI")).await(
-              on(atom("waifail"), arg_match) >> [&](const string& msg) {
-                err = msg;
-                res = sash::no_command;
-              },
-              on(atom("waicorrect"), arg_match) >> [&](const string& id) {
-                cout << "Current node: " << id << endl;
-              }
-            );
-            return res;
+            if (visited_nodes.empty()) {
+              err = "You are currently in globalmode."
+                    " Please select a node with 'change-node <node_id>'.";
+              return sash::no_command;
+            }
+            cout << to_string(visited_nodes.back()) << endl;
+            engine->set("NODE", to_string(visited_nodes.back()));
+            return sash::executed;
           }
         },
         {
@@ -277,7 +266,8 @@ int main(int argc, char** argv) {
             return sash::executed;
           }
         },
-        {
+        // FIXME: whereiwas doesn't work!
+/*        {
           "whereiwas", "prints all node-ids visited starting with least.",
           [&](string&, char_iter, char_iter) -> command_result {
             list<node_id> visited_nodes;
@@ -294,7 +284,7 @@ int main(int argc, char** argv) {
             }
             return sash::executed;
           }
-        },
+        }, */
         {
           "back", "changes location to previous node.",
           [&](string& err, char_iter first, char_iter last) -> command_result {
@@ -432,12 +422,12 @@ int main(int argc, char** argv) {
               }
             }
             return sash::executed;
-          },
-          {
-            "send", "sends a message to an actor",
-            [&](string& err, char_iter first, char_iter last) -> command_result {
-              // TODO: implement me
-            }
+          }
+        },
+        {
+          "send", "sends a message to an actor",
+          [&](string& err, char_iter first, char_iter last) -> command_result {
+            // TODO: implement me
           }
         }
     };
