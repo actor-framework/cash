@@ -1,8 +1,6 @@
-Cash
+Cash 
 ==========
-**C**++ **A**ctor **Sh**ell.
-This shell is a frontend of [libcafs](https://github.com/actor-framework/actor-framework) debugging tools. 
-**It is still in development.**
+C++ Actor Shell (*Cash*) is a frontend of [libcafs](https://github.com/actor-framework/actor-framework) debugging tools, using [SASH](https://github.com/Neverlord/sash).
 
 Dependencies
 ---------------
