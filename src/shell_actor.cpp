@@ -124,16 +124,9 @@ behavior shell_actor::make_behavior() {
         return make_message(atom("cncorrect"), input_node);
       }
     },
-    on(atom("WhereAmI")) >> [=] {
-      return m_visited_nodes.empty()
-          ? make_message(atom("waifail"), "You are currently in globalmode. "
-                                          "You can select a node "
-                                          "with 'change-node <node_id>'.")
-          : make_message(atom("waicorrect"),
-                         to_string(m_visited_nodes.back()));
-    },
-    on(atom("NodeData")) >> [&]() -> message { // optional<node_data>
-      auto search = m_known_nodes.find(m_visited_nodes.back());
+    on(atom("NodeData"), arg_match) >> [&](const node_id& current_node)
+                                          -> message { // optional<node_data>
+      auto search = m_known_nodes.find(current_node);
       if (search != m_known_nodes.end()) {
         auto nd = search->second;
         auto ni = nd.node_info;
