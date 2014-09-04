@@ -1,17 +1,19 @@
-Actorshell
+Cash
 ==========
-This shell is a part of libcafs debugging tools. 
+**C**++ **A**ctor **Sh**ell.
+This shell is a frontend of [libcafs](https://github.com/actor-framework/actor-framework) debugging tools. 
 **It is still in development.**
 
 Dependencies
 ---------------
-* [libcaf] (https://github.com/Neverlord/libcppa) - please checkout unstable 
+* [libcaf] (https://github.com/actor-framework/actor-framework) 
 * [libedit] (http://thrysoee.dk/editline/)
 
-
-Get the Sources
+Get the sources
 ---------------
+You can download sources with libraries at [github.com/actor-framework/actor-framework](https://github.com/actor-framework/actor-framework). 
 
-    git clone --recursive https://github.com/actor-framework/shell.git
-    cd shell
-    
+Bug report
+----------
+You have any kind of suggestions or found bugs?
+Please write an issue at [actor-framwork/issues](https://github.com/actor-framework/actor-framework/issues) with label **@shell**.
