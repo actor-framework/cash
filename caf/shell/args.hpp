@@ -33,9 +33,8 @@ struct net_config {
   }
 };
 
-
-const char host_arg[] = "--caf-nexus-host=";
-const char port_arg[] = "--caf-nexus-port=";
+constexpr char host_arg[] = "--caf-nexus-host=";
+constexpr char port_arg[] = "--caf-nexus-port=";
 
 template<size_t Size>
 bool is_substr(const char (&needle)[Size], const char* haystack) {
@@ -63,7 +62,7 @@ void from_args(net_config& conf, int argc, char** argv) {
 }
 
 void print_help() {
-  std::cerr << "Invalid arguments. Supported arguments are: "
+  std::cerr << "Invalid arguments. Use:"
        << std::endl << host_arg
        << std::endl << port_arg
        << std::endl;
