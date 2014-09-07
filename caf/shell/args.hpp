@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *                       ____    _    _____                                   *
  *                      / ___|  / \  |  ___|    C++                           *
@@ -18,8 +17,8 @@
  * http://www.boost.org/LICENSE_1_0.txt.                                      *
  ******************************************************************************/
 
-#ifndef CAF_SHELL_ARGS_H
-#define CAF_SHELL_ARGS_H
+#ifndef CAF_SHELL_ARGS_HPP
+#define CAF_SHELL_ARGS_HPP
 
 namespace caf {
 namespace args {
@@ -71,4 +70,4 @@ void print_help() {
 } // namespace args
 } // namespace caf
 
-#endif // CAF_SHELL_ARGS_H
+#endif // CAF_SHELL_ARGS_HPP
