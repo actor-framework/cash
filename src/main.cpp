@@ -26,9 +26,9 @@
 
 #include "caf/all.hpp"
 #include "caf/io/all.hpp"
-#include "caf/shell/args.hpp"
 #include "caf/probe_event/all.hpp"
 #include "caf/shell/shell.hpp"
+#include "cppa/opt.hpp"
 
 using namespace caf;
 using namespace std;
@@ -44,14 +44,20 @@ constexpr char welcome_text[] = R"__(
 int main(int argc, char** argv) {
   announce<vector<node_id>>();
   probe_event::announce_types();
-  args::net_config config;
-  args::from_args(config, argc, argv);
-  auto nexus = io::typed_remote_actor<probe_event::nexus_type>(config.host,
-                                                               config.port);
-  if(!config.valid()) {
-    args::print_help();
+  string host;
+  uint16_t port = 0;
+  options_description desc;
+  bool args_valid = match_stream<string> (argv + 1, argv + argc) (
+    on_opt1('H', "caf-nexus-host", &desc, "set nexus host") >> rd_arg(host),
+    on_opt1('p', "caf-nexus-port", &desc, "set nexus port") >> rd_arg(port),
+    on_opt0('h', "help", &desc, "print help") >> print_desc_and_exit(&desc)
+  );
+  if(!args_valid || port == 0 || host.empty()) {
+    auto desc_printer = print_desc(&desc, cerr);
+    desc_printer();
     return 42;
   }
+  auto nexus = io::typed_remote_actor<probe_event::nexus_type>(host, port);
   cout << welcome_text << endl;
   { // lifetime scope of shell
     shell::shell sh;
