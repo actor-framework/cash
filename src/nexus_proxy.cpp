@@ -32,42 +32,80 @@ behavior nexus_proxy::make_behavior() {
       //aout(this) << "new message" << endl;
     },
     [=](probe_event::node_info& ni) {
-      m_known_nodes[ni.source_node].node = std::move(ni);
+      m_data[ni.source_node].node = std::move(ni);
     },
     [=](probe_event::work_load& wl) {
-      m_known_nodes[wl.source_node].load = std::move(wl);
+      m_data[wl.source_node].load = std::move(wl);
     },
     [=](probe_event::ram_usage& ru) {
-      m_known_nodes[ru.source_node].ram = std::move(ru);
+      m_data[ru.source_node].ram = std::move(ru);
     },
     on(atom("Nodes")) >> [=]() -> std::vector<node_id> {
       std::vector<node_id> result;
-      result.reserve(m_known_nodes.size());
-      for (auto& kvp : m_known_nodes) {
+      result.reserve(m_data.size());
+      for (auto& kvp : m_data) {
         result.push_back(kvp.first);
       }
       return result;
     },
     on(atom("NodeInfo"), arg_match) >> [=](const node_id& nid) -> message {
-      auto i = m_known_nodes.find(nid);
-      if (i == m_known_nodes.end()) {
+      auto i = m_data.find(nid);
+      if (i == m_data.end()) {
         return make_message(atom("NoNodeInfo"));
       }
       return make_message(i->second.node);
     },
     on(atom("WorkLoad"), arg_match) >> [=](const node_id& nid) -> message {
-      auto i = m_known_nodes.find(nid);
-      if (i == m_known_nodes.end() || !i->second.load) {
+      auto i = m_data.find(nid);
+      if (i == m_data.end() || !i->second.load) {
         return make_message(atom("NoWorkLoad"));
       }
       return make_message(*(i->second.load));
     },
     on(atom("RamUsage"), arg_match) >> [=](const node_id& nid) -> message {
-      auto i = m_known_nodes.find(nid);
-      if (i == m_known_nodes.end() || !i->second.ram) {
+      auto i = m_data.find(nid);
+      if (i == m_data.end() || !i->second.ram) {
         return make_message(atom("NoRamUsage"));
       }
       return make_message(*(i->second.ram));
+    },
+    on(atom("ListActors"), arg_match) >> [=](const node_id& nid) -> std::string {
+      std::ostringstream oss;
+      auto& known_actors = m_data[nid].known_actors;
+      for (auto& addr : known_actors) {
+        oss << addr.id() << "\n";
+      }
+      return oss.str();
+    },
+    on(atom("GetActor"), arg_match) >> [=](const node_id& nid, uint32_t aid) -> actor {
+      auto& known_actors = m_data[nid].known_actors;
+      auto last = known_actors.end();
+      auto pred = [aid](const actor_addr& addr) {
+        return addr.id() == aid;
+      };
+      auto i = std::find_if(known_actors.begin(), last, pred);
+      if (i != last) {
+        return actor_cast<actor>(*i);
+      }
+      return invalid_actor;
+    },
+    on(atom("Init"), arg_match) >> [=](const probe_event::nexus_type& nexus) {
+      auto hdl = make_response_promise();
+      send(nexus, probe_event::add_listener{this});
+      become(
+        keep_behavior,
+        [=](probe_event::probe_data_map& init_state) {
+          m_data.swap(init_state);
+          hdl.deliver(make_message(atom("InitDone")));
+          unbecome();
+        }
+      );
+    },
+    [=](const down_msg& dm) {
+      auto i = m_data.find(dm.source.node());
+      if (i != m_data.end()) {
+        i->second.known_actors.erase(dm.source);
+      }
     },
     others() >> [=] {
       aout(this) << "Received from sender: "

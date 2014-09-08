@@ -81,6 +81,10 @@ class shell {
 
   void pop_front(char_iter first, char_iter last);
 
+  void await_msg(char_iter first, char_iter last);
+
+  void list_actors(char_iter first, char_iter last);
+
   inline std::function<sash::command_result (std::string&, char_iter, char_iter)>
   cb(void (shell::*memfun)(char_iter, char_iter)) {
     return [=](std::string& err, char_iter first, char_iter last) -> sash::command_result {

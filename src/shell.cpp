@@ -26,6 +26,8 @@
 #include <iostream>
 #include <algorithm>
 
+#include "caf/io/all.hpp"
+
 #include "caf/shell/nexus_proxy.hpp"
 
 using std::cout;
@@ -33,6 +35,7 @@ using std::endl;
 using std::setw;
 using std::left;
 using std::right;
+using std::flush;
 
 namespace {
 
@@ -65,7 +68,8 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
     {"sleep",       "sleep for n milliseconds",      cb(&shell::sleep)},
     {"mailbox",     "prints the shell's mailbox",    cb(&shell::mailbox)},
     {"dequeue",     "removes element from mailbox",  cb(&shell::dequeue)},
-    {"pop-front",   "removes oldest mailbox element",cb(&shell::pop_front)}
+    {"pop-front",   "removes oldest mailbox element",cb(&shell::pop_front)},
+    {"await-msg",   "awaits and prints a message",   cb(&shell::await_msg)}
   };
   std::vector<cli_type::mode_type::cmd_clause> node_cmds {
     {"whereami",    "prints current node",           cb(&shell::whereami)},
@@ -74,7 +78,8 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
     {"ram-usage",   "prints RAM usage",              cb(&shell::ram_usage)},
     {"statistics",  "prints statistics",             cb(&shell::statistics)},
     {"interfaces",  "prints all interfaces",         cb(&shell::interfaces)},
-    {"send",        "sends a message to an actor",   cb(&shell::send)}
+    {"send",        "sends a message to an actor",   cb(&shell::send)},
+    {"list-actors", "prints all known actors",       cb(&shell::list_actors)}
   };
   auto global_mode  = m_cli.mode_add("global", "$ ");
   auto node_mode    = m_cli.mode_add("node"  , "$ ");
@@ -87,7 +92,13 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
 }
 
 void shell::run(probe_event::nexus_type nexus) {
-  m_self->send(nexus, probe_event::add_listener{m_nexus_proxy});
+  cout << "Initiate handshake with Nexus ..." << std::flush;
+  // wait until our proxy has finished its handshake
+  m_self->sync_send(m_nexus_proxy, atom("Init"), nexus).await(
+    on(atom("InitDone")) >> [] {
+      cout << " done" << endl;
+    }
+  );
   std::string line;
   while (!m_done) {
     m_cli.read_line(line);
@@ -105,13 +116,13 @@ void shell::run(probe_event::nexus_type nexus) {
         break;
     }
   }
+  anon_send_exit(m_nexus_proxy, exit_reason::user_shutdown);
 }
 
 void shell::quit(char_iter first, char_iter last) {
   if (!assert_empty(first, last)) {
     return;
   }
-  anon_send_exit(m_nexus_proxy, exit_reason::user_shutdown);
   m_done = true;
 }
 
@@ -340,7 +351,7 @@ void shell::send(char_iter first, char_iter last) {
   const char* cfirst = &(*first);
   const char* clast = &(*last);
   char* pos;
-  auto aid = strtol(cfirst, &pos, 10);
+  auto aid = static_cast<uint32_t>(strtol(cfirst, &pos, 10));
   if (pos == cfirst || pos == clast) {
     set_error("missing actor ID as first argument");
     return;
@@ -355,20 +366,77 @@ void shell::send(char_iter first, char_iter last) {
     set_error("cannot deserialize a message from given input");
     return;
   }
-  cout << "[not implemented yet] message: " << to_string(*msg) << endl;
-  // TODO: send message using m_user
+  m_self->sync_send(m_nexus_proxy, atom("GetActor"), m_node, aid).await(
+    [&](const actor& handle) {
+      if (handle == invalid_actor) {
+        cout << "send: no actor known with ID " << aid << endl;
+        return;
+      }
+      m_user->send(handle, std::move(*msg));
+    }
+  );
 }
 
 void shell::mailbox(char_iter first, char_iter last) {
   // TODO: implement me
+  set_error("mailbox: not implemented yet");
 }
 
 void shell::dequeue(char_iter first, char_iter last) {
   // TODO: implement me
+  set_error("dequeue: not implemented yet");
 }
 
 void shell::pop_front(char_iter first, char_iter last) {
-  // TODO: implement me
+  if (!assert_empty(first, last)) {
+    return;
+  }
+  m_user->receive(
+    others() >> [&] {
+      cout << to_string(m_user->last_dequeued()) << endl;
+    },
+    after(std::chrono::seconds(0)) >> [] {
+      cout << "pop-front: mailbox is empty" << endl;
+    }
+  );
+}
+
+void shell::await_msg(char_iter first, char_iter last) {
+  if (!assert_empty(first, last)) {
+    return;
+  }
+  m_user->receive(
+    others() >> [&] {
+      cout << to_string(m_user->last_dequeued()) << endl;
+    }
+  );
+}
+
+void shell::list_actors(char_iter first, char_iter last) {
+  if (!assert_empty(first, last)) {
+    return;
+  }
+  auto nid = m_node;
+  actor self = m_self;
+  auto mm = io::middleman::instance();
+  mm->run_later([nid, self, mm] {
+    auto bro = mm->get_named_broker<io::basp_broker>(atom("_BASP"));
+    auto proxies = bro->get_namespace().get_all(nid);
+    std::ostringstream oss;
+    for (auto& p : proxies) {
+      oss << p->id() << endl;
+    }
+    anon_send(self, atom("ListActors"), oss.str());
+  });
+  // wait for result
+  m_self->sync_send(m_nexus_proxy, atom("ListActors"), m_node).await(
+    [](const std::string& res) {
+      if (res.empty()) {
+        cout << "list-actors: no actors known on this host" << endl;
+      }
+      cout << res << flush;
+    }
+  );
 }
 
 } // namespace shell

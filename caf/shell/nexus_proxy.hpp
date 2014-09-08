@@ -33,7 +33,7 @@ class nexus_proxy : public event_based_actor {
   behavior make_behavior() override;
 
  private:
-  std::map<node_id, probe_event::probe_data>  m_known_nodes;
+  probe_event::probe_data_map  m_data;
   std::list<node_id> m_visited_nodes;
 };
 
