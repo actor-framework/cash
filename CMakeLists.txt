@@ -18,9 +18,9 @@ set(CAF_SHELL_SRCS
 
 find_package(Editline REQUIRED)
 
-add_executable(shell ${CAF_SHELL_SRCS} ${CAF_SHELL_HDRS})
+add_executable(cash ${CAF_SHELL_SRCS} ${CAF_SHELL_HDRS})
 
-target_link_libraries(shell
+target_link_libraries(cash
                       ${LD_FLAGS}
                       ${LIBCAF_LIBRARIES}
                       ${PTHREAD_LIBRARIES}
