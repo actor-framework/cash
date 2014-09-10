@@ -24,3 +24,5 @@ target_link_libraries(cash
                       ${LIBCAF_LIBRARIES}
                       ${PTHREAD_LIBRARIES}
                       ${EDITLINE_LIBRARIES})
+
+install(PROGRAMS ${EXECUTABLE_OUTPUT_PATH}/cash DESTINATION bin)
