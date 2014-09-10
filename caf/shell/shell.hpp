@@ -25,7 +25,7 @@
 #include "caf/optional.hpp"
 #include "caf/scoped_actor.hpp"
 
-#include "caf/probe_event/all.hpp"
+#include "caf/riac/all.hpp"
 
 #include "sash/sash.hpp"
 #include "sash/libedit_backend.hpp"
@@ -41,7 +41,7 @@ class shell {
 
   shell();
 
-  void run(probe_event::nexus_type nexus);
+  void run(riac::nexus_type nexus);
 
  private:
 

@@ -25,19 +25,19 @@ namespace shell {
 behavior nexus_proxy::make_behavior() {
   return {
     // nexus communication
-    [=](const probe_event::new_message& ) {
+    [=](const riac::new_message& ) {
       //aout(this) << "new message" << endl;
     },
-    [=](const probe_event::new_route& nr) {
+    [=](const riac::new_route& nr) {
       //aout(this) << "new message" << endl;
     },
-    [=](probe_event::node_info& ni) {
+    [=](riac::node_info& ni) {
       m_data[ni.source_node].node = std::move(ni);
     },
-    [=](probe_event::work_load& wl) {
+    [=](riac::work_load& wl) {
       m_data[wl.source_node].load = std::move(wl);
     },
-    [=](probe_event::ram_usage& ru) {
+    [=](riac::ram_usage& ru) {
       m_data[ru.source_node].ram = std::move(ru);
     },
     on(atom("Nodes")) >> [=]() -> std::vector<node_id> {
@@ -89,12 +89,12 @@ behavior nexus_proxy::make_behavior() {
       }
       return invalid_actor;
     },
-    on(atom("Init"), arg_match) >> [=](const probe_event::nexus_type& nexus) {
+    on(atom("Init"), arg_match) >> [=](const riac::nexus_type& nexus) {
       auto hdl = make_response_promise();
-      send(nexus, probe_event::add_listener{this});
+      send(nexus, riac::add_listener{this});
       become(
         keep_behavior,
-        [=](probe_event::probe_data_map& init_state) {
+        [=](riac::probe_data_map& init_state) {
           m_data.swap(init_state);
           hdl.deliver(make_message(atom("InitDone")));
           unbecome();

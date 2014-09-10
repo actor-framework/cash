@@ -91,7 +91,7 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
   m_nexus_proxy = spawn<nexus_proxy>();
 }
 
-void shell::run(probe_event::nexus_type nexus) {
+void shell::run(riac::nexus_type nexus) {
   cout << "Initiate handshake with Nexus ..." << std::flush;
   // wait until our proxy has finished its handshake
   m_self->sync_send(m_nexus_proxy, atom("Init"), nexus).await(
@@ -150,40 +150,40 @@ void shell::test_nodes(char_iter first, char_iter last) {
   node_id n2(123,  "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf");
   node_id n3(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf");
   send_invidually(
-    probe_event::node_info{
+    riac::node_info{
       n1,
       {{n1, 2, 2300}},
       "Sokrates",
       "Mac OS X",
-      {{"en0", {{probe_event::protocol::ethernet,
+      {{"en0", {{riac::protocol::ethernet,
                  {"00:00:FF:FF:92:00"}}}}}
     },
-    probe_event::work_load{n1, 0, 5, 3},
-    probe_event::ram_usage{n1, 512, 1024}
+    riac::work_load{n1, 0, 5, 3},
+    riac::ram_usage{n1, 512, 1024}
   );
   send_invidually(
-    probe_event::node_info{
+    riac::node_info{
       n2,
       {{n2, 4, 1500}, {n2, 32, 3500}},
       "Platon",
       "Linux",
-      {{"wlan0", {{probe_event::protocol::ethernet,
+      {{"wlan0", {{riac::protocol::ethernet,
                    {"00:00:FF:FF:00:00"}}}}}
     },
-    probe_event::work_load{n2, 10, 20, 3},
-    probe_event::ram_usage{n2, 1024, 8096}
+    riac::work_load{n2, 10, 20, 3},
+    riac::ram_usage{n2, 1024, 8096}
   );
   send_invidually(
-    probe_event::node_info{
+    riac::node_info{
       n3,
       {{n3, 4, 1500}, {n3, 8, 2500}, {n3, 64, 5500}},
       "hostname123",
       "BSD",
-      {{"en1", {{probe_event::protocol::ethernet,
+      {{"en1", {{riac::protocol::ethernet,
                  {"00:00:FF:FF:00:00"}}}}}
     },
-    probe_event::work_load{n3, 23, 20, 3},
-    probe_event::ram_usage{n3, 1024, 8096}
+    riac::work_load{n3, 23, 20, 3},
+    riac::ram_usage{n3, 1024, 8096}
   );
 }
 
@@ -247,7 +247,7 @@ void shell::work_load(char_iter first, char_iter last) {
     return;
   }
   m_self->sync_send(m_nexus_proxy, atom("WorkLoad"), m_node).await(
-    [](const probe_event::work_load& wl) {
+    [](const riac::work_load& wl) {
       cout << setw(20) << "Processes: "
            << setw(3)  << wl.num_processes
            << endl
@@ -269,7 +269,7 @@ void shell::ram_usage(char_iter first, char_iter last) {
     return;
   }
   m_self->sync_send(m_nexus_proxy, atom("RamUsage"), m_node).await(
-    [](const probe_event::ram_usage& ru) {
+    [](const riac::ram_usage& ru) {
       auto used_ram_in_percent = (ru.in_use * 100.0) / ru.available;
       cout << "RAM: "
            << progressbar(static_cast<size_t>(used_ram_in_percent / 2), '#')
@@ -287,7 +287,7 @@ void shell::statistics(char_iter first, char_iter last) {
     return;
   }
   m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), m_node).await(
-    [=](const probe_event::node_info& ni) {
+    [=](const riac::node_info& ni) {
       cout << setw(21) << "Node-ID:  "
            << setw(50) << left << to_string(ni.source_node) << right << endl
            << setw(21) << "Hostname:  " << ni.hostname << endl
@@ -317,8 +317,8 @@ void shell::interfaces(char_iter first, char_iter last) {
     return;
   }
   m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), m_node).await(
-    [=](const probe_event::node_info& ni) {
-      using probe_event::protocol;
+    [=](const riac::node_info& ni) {
+      using riac::protocol;
       auto tostr = [](protocol p) -> std::string {
         switch (p) {
           case protocol::ethernet:

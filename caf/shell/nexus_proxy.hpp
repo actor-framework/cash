@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "caf/all.hpp"
-#include "caf/probe_event/all.hpp"
+#include "caf/riac/all.hpp"
 
 namespace caf {
 namespace shell {
@@ -33,7 +33,7 @@ class nexus_proxy : public event_based_actor {
   behavior make_behavior() override;
 
  private:
-  probe_event::probe_data_map  m_data;
+  riac::probe_data_map  m_data;
   std::list<node_id> m_visited_nodes;
 };
 

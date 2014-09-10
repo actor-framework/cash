@@ -26,7 +26,7 @@
 
 #include "caf/all.hpp"
 #include "caf/io/all.hpp"
-#include "caf/probe_event/all.hpp"
+#include "caf/riac/all.hpp"
 #include "caf/shell/shell.hpp"
 #include "cppa/opt.hpp"
 
@@ -43,7 +43,7 @@ constexpr char welcome_text[] = R"__(
 
 int main(int argc, char** argv) {
   announce<vector<node_id>>();
-  probe_event::announce_types();
+  riac::announce_message_types();
   string host;
   uint16_t port = 0;
   options_description desc;
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
     desc_printer();
     return 42;
   }
-  auto nexus = io::typed_remote_actor<probe_event::nexus_type>(host, port);
+  auto nexus = io::typed_remote_actor<riac::nexus_type>(host, port);
   cout << welcome_text << endl;
   { // lifetime scope of shell
     shell::shell sh;
