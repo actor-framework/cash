@@ -1,17 +1,12 @@
 Cash 
 ==========
-C++ Actor Shell (*Cash*) is a frontend of [libcafs](https://github.com/actor-framework/actor-framework) debugging tools, using [SASH](https://github.com/Neverlord/sash).
+C++ Actor Shell (*Cash*) is a frontend of [libcafs](https://github.com/actor-framework/actor-framework) debugging tools, using [SASH](https://github.com/Neverlord/sash). Please find the documentation of this component in CAF's [Wiki](https://github.com/actor-framework/actor-framework/wiki).
 
 Dependencies
 ---------------
 * [libcaf] (https://github.com/actor-framework/actor-framework) 
 * [libedit] (http://thrysoee.dk/editline/)
 
-Get the sources
----------------
-You can download sources with libraries at [github.com/actor-framework/actor-framework](https://github.com/actor-framework/actor-framework). 
-
 Bug report
 ----------
-You have any kind of suggestions or found bugs?
-Please write an issue at [actor-framwork/issues](https://github.com/actor-framework/actor-framework/issues) with label **@shell**.
+ For suggestions and bug reports, please use CAF's [issue tracker](https://github.com/actor-framework/actor-framework/wiki).
