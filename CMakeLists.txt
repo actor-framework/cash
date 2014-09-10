@@ -13,8 +13,7 @@ file(GLOB CAF_SHELL_HDRS "caf/shell/*.hpp" "sash/sash/*.hpp")
 
 set(CAF_SHELL_SRCS
     src/main.cpp
-    src/shell.cpp
-    src/nexus_proxy.cpp)
+    src/shell.cpp)
 
 find_package(Editline REQUIRED)
 

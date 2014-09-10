@@ -27,8 +27,7 @@
 #include <algorithm>
 
 #include "caf/io/all.hpp"
-
-#include "caf/shell/nexus_proxy.hpp"
+#include "caf/riac/nexus_proxy.hpp"
 
 using std::cout;
 using std::endl;
@@ -88,7 +87,7 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
   node_mode->add_all(node_cmds);
   m_cli.add_preprocessor(m_engine->as_functor());
   m_cli.mode_push("global");
-  m_nexus_proxy = spawn<nexus_proxy>();
+  m_nexus_proxy = spawn<riac::nexus_proxy>();
 }
 
 void shell::run(riac::nexus_type nexus) {
