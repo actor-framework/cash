@@ -227,9 +227,18 @@ void shell::change_node(char_iter first, char_iter last) {
     set_error("change-node: invalid node-id. ");
     return;
   }
-  m_engine->set("NODE", node_str);
-  m_node = *input_node;
-  m_cli.mode_push("node");
+  // check if node is known
+  std::string unkown_id = "change-node: unknown node-id. ";
+  m_self->sync_send(m_nexus_proxy, atom("HasNode"), *input_node).await(
+    on(atom("Yes")) >> [=] {
+      m_engine->set("NODE", node_str);
+      m_node = *input_node;
+      m_cli.mode_push("node");
+    },
+    on(atom("No")) >> [&] {
+      set_error(unkown_id);
+    }
+  );
 }
 
 void shell::leave_node(char_iter first, char_iter last) {
