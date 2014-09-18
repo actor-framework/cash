@@ -32,7 +32,7 @@
 #include "sash/variables_engine.hpp"
 
 namespace caf {
-namespace shell {
+namespace cash {
 
 class shell {
  public:
@@ -54,6 +54,8 @@ class shell {
   void help(char_iter first, char_iter last);
 
   void change_node(char_iter first, char_iter last);
+
+  void change_host(char_iter first, char_iter last);
 
   void test_nodes(char_iter first, char_iter last);
 
@@ -84,6 +86,8 @@ class shell {
   void await_msg(char_iter first, char_iter last);
 
   void list_actors(char_iter first, char_iter last);
+
+  void set_node(node_id id);
 
   inline std::function<sash::command_result (std::string&, char_iter, char_iter)>
   cb(void (shell::*memfun)(char_iter, char_iter)) {
@@ -128,7 +132,7 @@ class shell {
   std::shared_ptr<sash::variables_engine<>> m_engine;
 };
 
-} // namespace shell
+} // namespace cash
 } // namespace caf
 
 #endif // CAF_SHELL_SHELL_HPP

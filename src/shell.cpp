@@ -52,7 +52,7 @@ std::string progressbar(int percent, char sign = '#', int amount = 50) {
 } // namespace <anonymous>
 
 namespace caf {
-namespace shell {
+namespace cash {
 
 shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
   // register global commands
@@ -64,6 +64,7 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
     {"test-nodes",  "loads static dummy-nodes",      cb(&shell::test_nodes)},
     {"list-nodes",  "prints all available nodes",    cb(&shell::list_nodes)},
     {"change-node", "switch between nodes",          cb(&shell::change_node)},
+    {"change-host", "switch between hosts",          cb(&shell::change_host)},
     {"sleep",       "sleep for n milliseconds",      cb(&shell::sleep)},
     {"mailbox",     "prints the shell's mailbox",    cb(&shell::mailbox)},
     {"dequeue",     "removes element from mailbox",  cb(&shell::dequeue)},
@@ -231,12 +232,42 @@ void shell::change_node(char_iter first, char_iter last) {
   std::string unkown_id = "change-node: unknown node-id. ";
   m_self->sync_send(m_nexus_proxy, atom("HasNode"), *input_node).await(
     on(atom("Yes")) >> [=] {
-      m_engine->set("NODE", node_str);
-      m_node = *input_node;
-      m_cli.mode_push("node");
+      set_node(*input_node);
     },
     on(atom("No")) >> [&] {
       set_error(unkown_id);
+    }
+  );
+}
+
+void shell::change_host(char_iter first, char_iter last) {
+  if (first == last) {
+    return;
+  }
+  std::string host_str(first, last);
+  // check if hostname is known
+  std::string unkown_host = "change-host: unknown hostname. ";
+  m_self->sync_send(m_nexus_proxy, atom("HasHost"), host_str).await(
+    on(atom("Yes"), arg_match) >> [=](const std::vector<node_id> node_ids) {
+      if (node_ids.size() == 1) {
+        set_node(node_ids.back());
+      } else {
+        std::stringstream es;
+        es << "More then one node on "
+           << host_str
+           << " please use 'change-node'."
+           << endl
+           << "Known process-ids: ";
+        for (node_id ni : node_ids) {
+          es << ni.process_id();
+          if (ni != node_ids.back())
+          es << ", ";
+        }
+        set_error(es.str());
+      }
+    },
+    on(atom("No")) >> [=]{
+      set_error(unkown_host);
     }
   );
 }
@@ -447,5 +478,12 @@ void shell::list_actors(char_iter first, char_iter last) {
   );
 }
 
-} // namespace shell
+void shell::set_node(node_id id) {
+  auto node_str = to_string(id);
+  m_engine->set("NODE", node_str);
+  m_node = id;
+  m_cli.mode_push("node");
+}
+
+} // namespace cash
 } // namespace caf
