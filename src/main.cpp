@@ -27,7 +27,7 @@
 #include "caf/all.hpp"
 #include "caf/io/all.hpp"
 #include "caf/riac/all.hpp"
-#include "caf/shell/shell.hpp"
+#include "caf/cash/shell.hpp"
 #include "cppa/opt.hpp"
 
 using namespace caf;
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
   auto nexus = io::typed_remote_actor<riac::nexus_type>(host, port);
   cout << welcome_text << endl;
   { // lifetime scope of shell
-    shell::shell sh;
+    cash::shell sh;
     sh.run(nexus);
   }
   await_all_actors_done();

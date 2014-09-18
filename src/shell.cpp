@@ -17,7 +17,7 @@
  * http://www.boost.org/LICENSE_1_0.txt.                                      *
  ******************************************************************************/
 
-#include "caf/shell/shell.hpp"
+#include "caf/cash/shell.hpp"
 
 #include <thread>
 #include <vector>
