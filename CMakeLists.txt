@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(caf_shell CXX)
+project(caf_cash CXX)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -9,15 +9,15 @@ endif()
 
 include_directories(. ${LIBCAF_INCLUDE_DIRS} sash/)
 
-file(GLOB CAF_SHELL_HDRS "caf/shell/*.hpp" "sash/sash/*.hpp")
+file(GLOB CAF_CASH_HDRS "caf/cash/*.hpp" "sash/sash/*.hpp")
 
-set(CAF_SHELL_SRCS
+set(CAF_CASH_SRCS
     src/main.cpp
     src/shell.cpp)
 
 find_package(Editline REQUIRED)
 
-add_executable(cash ${CAF_SHELL_SRCS} ${CAF_SHELL_HDRS})
+add_executable(cash ${CAF_CASH_SRCS} ${CAF_CASH_HDRS})
 
 target_link_libraries(cash
                       ${LD_FLAGS}
