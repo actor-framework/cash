@@ -253,15 +253,15 @@ void shell::change_host(char_iter first, char_iter last) {
         set_node(node_ids.back());
       } else {
         std::stringstream es;
-        es << "More then one node on "
-           << host_str
-           << " please use 'change-node'."
+        es << "More then one node on " << host_str
+           << " please use 'change-node <node-id>'."
            << endl
-           << "Known process-ids: ";
+           << "Known nodes: "
+           << endl;
         for (node_id ni : node_ids) {
-          es << ni.process_id();
+          es << to_string(ni);
           if (ni != node_ids.back())
-          es << ", ";
+          es << ", " << endl;
         }
         set_error(es.str());
       }
