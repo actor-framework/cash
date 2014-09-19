@@ -201,12 +201,20 @@ void shell::list_nodes(char_iter first, char_iter last) {
     return;
   }
   m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
-    [](std::vector<node_id>& nodes) {
+    [=](std::vector<node_id>& nodes) {
       if(nodes.empty()) {
         cout << " no nodes avaliable" << endl;
       }
       for (auto& node : nodes) {
-        cout << to_string(node) << endl;
+        m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), node).await(
+          [=](const riac::node_info& ni) {
+            cout << to_string(ni.source_node) << " on " << ni.hostname
+                 << endl;
+          },
+          on(atom("NoNodeInfo")) >> [=] {
+            set_error("Unexpected error.");
+          }
+        );
       }
     }
   );
