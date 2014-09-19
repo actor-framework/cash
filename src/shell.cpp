@@ -49,6 +49,16 @@ std::string progressbar(int percent, char sign = '#', int amount = 50) {
   return s.str();
 }
 
+std::vector<std::string> my_split(const std::string name, const char& lim) {
+  std::stringstream         s(name);
+  std::vector<std::string>  words;
+  std::string               word;
+  while (getline(s, word, lim)) {
+    words.push_back(word);
+  }
+ return words;
+}
+
 } // namespace <anonymous>
 
 namespace caf {
@@ -64,7 +74,6 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
     {"test-nodes",  "loads static dummy-nodes",      cb(&shell::test_nodes)},
     {"list-nodes",  "prints all available nodes",    cb(&shell::list_nodes)},
     {"change-node", "switch between nodes",          cb(&shell::change_node)},
-    {"change-host", "switch between hosts",          cb(&shell::change_host)},
     {"sleep",       "sleep for n milliseconds",      cb(&shell::sleep)},
     {"mailbox",     "prints the shell's mailbox",    cb(&shell::mailbox)},
     {"dequeue",     "removes element from mailbox",  cb(&shell::dequeue)},
@@ -222,54 +231,65 @@ void shell::change_node(char_iter first, char_iter last) {
   if (first == last) {
     return;
   }
-  std::string node_str(first, last);
-  auto input_node = from_string<node_id>(node_str);
+  std::string input_str(first, last);
+  auto input_node = from_string<node_id>(input_str);
   if (!input_node) {
-    set_error("change-node: invalid node-id. ");
-    return;
-  }
-  // check if node is known
-  std::string unkown_id = "change-node: unknown node-id. ";
-  m_self->sync_send(m_nexus_proxy, atom("HasNode"), *input_node).await(
-    on(atom("Yes")) >> [=] {
-      set_node(*input_node);
-    },
-    on(atom("No")) >> [&] {
-      set_error(unkown_id);
+    std::string unknown_hostname = "change-node: unkown hostname. ";
+    std::string invalid_hostname = "change-node: invalid hostname. ";
+    auto input_words = my_split(input_str, ':');
+    if (2 < input_words.size() || input_words.size() < 1) {
+      set_error(invalid_hostname);
+      return;
     }
-  );
-}
-
-void shell::change_host(char_iter first, char_iter last) {
-  if (first == last) {
-    return;
-  }
-  std::string host_str(first, last);
-  // check if hostname is known
-  std::string unkown_host = "change-host: unknown hostname. ";
-  m_self->sync_send(m_nexus_proxy, atom("HasHost"), host_str).await(
-    on(atom("Yes"), arg_match) >> [=](const std::vector<node_id> node_ids) {
-      if (node_ids.size() == 1) {
-        set_node(node_ids.back());
-      } else {
-        std::stringstream es;
-        es << "More then one node on " << host_str
-           << " please use 'change-node <node-id>'."
-           << endl
-           << "Known nodes: "
-           << endl;
-        for (node_id ni : node_ids) {
-          es << to_string(ni);
-          if (ni != node_ids.back())
-          es << ", " << endl;
-        }
-        set_error(es.str());
+    int input_pid = -1;
+    if (input_words.size() == 2) {
+      try {
+        input_pid = std::stoi(input_words.back());
+      } catch(...) {
+        set_error(invalid_hostname);
+        return;
       }
-    },
-    on(atom("No")) >> [=]{
-      set_error(unkown_host);
     }
-  );
+    m_self->sync_send(m_nexus_proxy, atom("OnHost"), input_words.front()).await(
+      [=](const std::vector<node_id>& nodes_on_host) {
+        if (nodes_on_host.size() == 0) {
+          set_error(unknown_hostname);
+        } else if (input_pid == -1) {
+          if (nodes_on_host.size() == 1) {
+            set_node(nodes_on_host.front());
+          } else {
+            std::stringstream es;
+            es << "Valid process-ids for " << input_words.front() << ": "
+               << endl;
+            for(auto node : nodes_on_host) {
+              es << node.process_id();
+              if (node != nodes_on_host.back()) {
+                es << ", " << endl;
+              }
+            }
+            set_error(es.str());
+          }
+        } else {
+          for (auto node : nodes_on_host) {
+            if (node.process_id() == input_pid) {
+              set_node(node);
+            }
+          }
+        }
+      }
+    );
+  } else {
+    // check if valid node is known
+    std::string unkown_id = "change-node: unknown node-id. ";
+    m_self->sync_send(m_nexus_proxy, atom("HasNode"), *input_node).await(
+      on(atom("Yes")) >> [=] {
+        set_node(*input_node);
+      },
+      on(atom("No")) >> [&] {
+        set_error(unkown_id);
+      }
+    );
+  }
 }
 
 void shell::leave_node(char_iter first, char_iter last) {

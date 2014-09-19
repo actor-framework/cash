@@ -55,8 +55,6 @@ class shell {
 
   void change_node(char_iter first, char_iter last);
 
-  void change_host(char_iter first, char_iter last);
-
   void test_nodes(char_iter first, char_iter last);
 
   void list_nodes(char_iter first, char_iter last);
