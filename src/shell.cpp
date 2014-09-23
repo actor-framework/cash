@@ -249,7 +249,7 @@ void shell::change_node(char_iter first, char_iter last) {
       set_error(invalid_hostname);
       return;
     }
-    int input_pid = -1;
+    uint32_t input_pid = 0;
     if (input_words.size() == 2) {
       try {
         input_pid = std::stoi(input_words.back());
@@ -262,7 +262,7 @@ void shell::change_node(char_iter first, char_iter last) {
       [=](const std::vector<node_id>& nodes_on_host) {
         if (nodes_on_host.size() == 0) {
           set_error(unknown_hostname);
-        } else if (input_pid == -1) {
+        } else if (input_pid == 0) {
           if (nodes_on_host.size() == 1) {
             set_node(nodes_on_host.front());
           } else {
@@ -278,10 +278,14 @@ void shell::change_node(char_iter first, char_iter last) {
             set_error(es.str());
           }
         } else {
-          for (auto node : nodes_on_host) {
-            if (node.process_id() == input_pid) {
-              set_node(node);
-            }
+          auto n = std::find_if(std::begin(nodes_on_host), std::end(nodes_on_host),
+                       [=](const node_id& n) -> bool {
+                         return n.process_id() == input_pid;
+                       });
+          if (n != std::end(nodes_on_host)) {
+            set_node(*n);
+          } else {
+            set_error("change-node: unkown process-id.");
           }
         }
       }
