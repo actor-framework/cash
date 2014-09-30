@@ -85,6 +85,8 @@ class shell {
 
   void list_actors(char_iter first, char_iter last);
 
+  void direct_conn(char_iter first, char_iter last);
+
   void set_node(node_id id);
 
   inline std::function<sash::command_result (std::string&, char_iter, char_iter)>
