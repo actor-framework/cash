@@ -45,6 +45,8 @@ class shell {
 
  private:
 
+  // global commands
+
   void quit(char_iter first, char_iter last);
 
   void echo(char_iter first, char_iter last);
@@ -61,6 +63,18 @@ class shell {
 
   void sleep(char_iter first, char_iter last);
 
+  void await_msg(char_iter first, char_iter last);
+
+  void mailbox(char_iter first, char_iter last);
+
+  void dequeue(char_iter first, char_iter last);
+
+  void pop_front(char_iter first, char_iter last);
+
+  void all_routes(char_iter first, char_iter last);
+
+  // Node commands
+
   void whereami(char_iter first, char_iter last);
 
   void leave_node(char_iter first, char_iter last);
@@ -75,17 +89,11 @@ class shell {
 
   void send(char_iter first, char_iter last);
 
-  void mailbox(char_iter first, char_iter last);
-
-  void dequeue(char_iter first, char_iter last);
-
-  void pop_front(char_iter first, char_iter last);
-
-  void await_msg(char_iter first, char_iter last);
-
   void list_actors(char_iter first, char_iter last);
 
   void direct_conn(char_iter first, char_iter last);
+
+  // no shell commands
 
   void set_node(node_id id);
 

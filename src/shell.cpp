@@ -49,6 +49,7 @@ std::string progressbar(int percent, char sign = '#', int amount = 50) {
   return s.str();
 }
 
+// TODO: use cafs split
 std::vector<std::string> my_split(const std::string name, const char& lim) {
   std::stringstream         s(name);
   std::vector<std::string>  words;
@@ -70,12 +71,13 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
     {"quit",          "terminates the whole thing",    cb(&shell::quit)},
     {"echo",          "prints its arguments",          cb(&shell::echo)},
     {"clear",         "clears screen",                 cb(&shell::clear)},
-    {"help",          "prints this text",              cb(&shell::help)},
-    {"test-nodes",    "loads static dummy-nodes",      cb(&shell::test_nodes)},
-    {"list-nodes",    "prints all available nodes",    cb(&shell::list_nodes)},
-    {"change-node",   "switch between nodes",          cb(&shell::change_node)},
     {"sleep",         "sleep for n milliseconds",      cb(&shell::sleep)},
+    {"help",          "prints this text",              cb(&shell::help)},
+    {"all-routes",    "prints all direct routes",      cb(&shell::all_routes)},
+    {"list-nodes",    "prints all available nodes",    cb(&shell::list_nodes)},
     {"mailbox",       "prints the shell's mailbox",    cb(&shell::mailbox)},
+    {"test-nodes",    "loads static dummy-nodes",      cb(&shell::test_nodes)},
+    {"change-node",   "switch between nodes",          cb(&shell::change_node)},
     {"dequeue",       "removes element from mailbox",  cb(&shell::dequeue)},
     {"pop-front",     "removes oldest mailbox element",cb(&shell::pop_front)},
     {"await-msg",     "awaits and prints a message",   cb(&shell::await_msg)}
@@ -83,11 +85,11 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
   std::vector<cli_type::mode_type::cmd_clause> node_cmds {
     {"whereami",      "prints current node",           cb(&shell::whereami)},
     {"leave-node",    "returns to global mode",        cb(&shell::leave_node)},
+    {"send",          "sends a message to an actor",   cb(&shell::send)},
     {"work-load",     "prints CPU load",               cb(&shell::work_load)},
     {"ram-usage",     "prints RAM usage",              cb(&shell::ram_usage)},
     {"statistics",    "prints statistics",             cb(&shell::statistics)},
     {"interfaces",    "prints all interfaces",         cb(&shell::interfaces)},
-    {"send",          "sends a message to an actor",   cb(&shell::send)},
     {"direct-routes", "prints all connected nodes",    cb(&shell::direct_conn)},
     {"list-actors",   "prints all known actors",       cb(&shell::list_actors)}
   };
@@ -305,6 +307,30 @@ void shell::change_node(char_iter first, char_iter last) {
   }
 }
 
+void shell::all_routes(char_iter first, char_iter last) {
+  if (!assert_empty(first, last)) {
+    return;
+  }
+  // TODO: refactor with direct_conn
+  m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
+    [=](const std::vector<node_id>& nodes) {
+      for (auto node : nodes) {
+        m_self->sync_send(m_nexus_proxy, atom("Routes"), node).await(
+          [=](const std::set<node_id>& dr) {
+            cout << to_string(node) << " ->"
+                      << endl;
+            for (auto route : dr) {
+              cout << to_string(route)
+                   << endl;
+            }
+            cout << endl;
+          }
+        );
+      }
+    }
+  );
+}
+
 void shell::leave_node(char_iter first, char_iter last) {
   if (!assert_empty(first, last)) {
     return;
@@ -390,11 +416,12 @@ void shell::direct_conn(char_iter first, char_iter last) {
   }
   m_self->sync_send(m_nexus_proxy, atom("Routes"), m_node).await(
     [=](const std::set<node_id>& conn) {
-      std::cout << "Nodes connected to " << to_string(m_node) << ":"
+      std::cout << to_string(m_node) << " ->"
                 << std::endl;
       for (auto ni : conn) {
         std::cout << to_string(ni) << endl;
       }
+      cout << endl;
     }
   );
 }
