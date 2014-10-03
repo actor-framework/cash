@@ -76,6 +76,8 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
     {"all-routes",    "prints all direct routes",      cb(&shell::all_routes)},
     {"list-nodes",    "prints all available nodes",    cb(&shell::list_nodes)},
     {"mailbox",       "prints the shell's mailbox",    cb(&shell::mailbox)},
+    // TODO: remove this command
+    {"test",          "tests from_hostname",           cb(&shell::test)},
     {"test-nodes",    "loads static dummy-nodes",      cb(&shell::test_nodes)},
     {"change-node",   "switch between nodes",          cb(&shell::change_node)},
     {"dequeue",       "removes element from mailbox",  cb(&shell::dequeue)},
@@ -558,6 +560,77 @@ void shell::set_node(node_id id) {
   m_engine->set("NODE", node_str);
   m_node = id;
   m_cli.mode_push("node");
+}
+
+void shell::test(char_iter first, char_iter last) {
+  auto dudi = from_string<node_id>(std::string(first, last));
+  //auto dudi = from_hostname(std::string(first,last));
+  if (dudi) {
+    auto blabla = to_hostname(*dudi);
+    if (blabla) {
+      cout << *blabla << endl;
+    } else {
+      set_error("NONO");
+    }
+  } else {
+    set_error("sss");
+  }
+}
+
+optional<node_id> shell::from_hostname(const std::string& input) {
+  std::vector<std::string> hostname;
+  caf::split(hostname, input, ":");
+  // check valid format
+  uint16_t input_size = hostname.size();
+  if (input_size < 1 || 2 < input_size) {
+    return none;
+  }
+  optional<node_id> ni = none;
+  m_self->sync_send(m_nexus_proxy, atom("OnHost"), hostname.front()).await(
+    [&](const std::vector<node_id>& nodes_on_host) {
+      if (nodes_on_host.size() == 1 && input_size == 1) {
+        ni = nodes_on_host.front();
+      } else if (input_size == 2) {
+        try {
+          for (node_id node_on_host : nodes_on_host) {
+              uint32_t process_id = std::stoi(hostname.back());
+              if (node_on_host.process_id() == process_id) {
+                ni = node_on_host;
+                // TODO: remove break
+                break;
+              }
+          }
+        } catch (...) {
+          ni = none;
+        }
+      } else {
+        ni = none;
+      }
+    }
+  );
+  return ni;
+}
+
+optional<std::string> shell::to_hostname(const node_id& node) {
+  if (node == invalid_node_id) {
+    return none;
+  }
+  optional<std::string> hostname = none;
+  m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
+    [&](const std::vector<node_id>& nodes) {
+        m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), node).await(
+          [&](const riac::node_info& ni) {
+            std::string tmp_hostname = ni.hostname;
+            //hostname = ni.hostname;
+            if (nodes.size() > 1) {
+              tmp_hostname += ":" + ni.source_node.process_id();
+            }
+            hostname = tmp_hostname;
+          }
+        );
+    }
+  );
+  return hostname;
 }
 
 } // namespace cash

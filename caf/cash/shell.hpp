@@ -73,6 +73,9 @@ class shell {
 
   void all_routes(char_iter first, char_iter last);
 
+  //TODO: remove this command
+  void test(char_iter first, char_iter last);
+
   // Node commands
 
   void whereami(char_iter first, char_iter last);
@@ -96,6 +99,10 @@ class shell {
   // no shell commands
 
   void set_node(node_id id);
+
+  optional<node_id> from_hostname(const std::string& node);
+
+  optional<std::string> to_hostname(const node_id& ni);
 
   inline std::function<sash::command_result (std::string&, char_iter, char_iter)>
   cb(void (shell::*memfun)(char_iter, char_iter)) {
