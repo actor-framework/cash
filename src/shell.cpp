@@ -207,14 +207,18 @@ void shell::list_nodes(char_iter first, char_iter last) {
   }
   m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
     [=](std::vector<node_id>& nodes) {
-      if(nodes.empty()) {
+      if (nodes.empty()) {
         cout << " no nodes avaliable" << endl;
       }
       for (auto& node : nodes) {
         m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), node).await(
           [=](const riac::node_info& ni) {
-            cout << to_string(ni.source_node) << " on " << ni.hostname
-                 << endl;
+            auto node_str = to_hostname(ni.source_node);
+            if (!node_str) {
+              set_error("list-nodes: can not convert node.");
+              return;
+            }
+            cout << *node_str << endl;
           },
           on(atom("NoNodeInfo")) >> [=] {
             set_error("Unexpected error.");
@@ -226,7 +230,7 @@ void shell::list_nodes(char_iter first, char_iter last) {
 }
 
 void shell::sleep(char_iter first, char_iter last) {
-  if(first == last) {
+  if (first == last) {
     return;
   }
   int time = std::stoi(std::string(first, last));
@@ -237,7 +241,12 @@ void shell::whereami(char_iter first, char_iter last) {
   if (!assert_empty(first, last)) {
     return;
   }
-  cout << to_string(m_node) << endl;
+  auto node_host = to_hostname(m_node);
+  if (!node_host) {
+    set_error("whereami: can't convert node-id.");
+    return;
+  }
+  cout << *node_host << endl;
 }
 
 void shell::change_node(char_iter first, char_iter last) {
@@ -247,54 +256,14 @@ void shell::change_node(char_iter first, char_iter last) {
   std::string input_str(first, last);
   auto input_node = from_string<node_id>(input_str);
   if (!input_node) {
-    std::string unknown_hostname = "change-node: unkown hostname. ";
-    std::string invalid_hostname = "change-node: invalid hostname. ";
-    auto input_words = my_split(input_str, ':');
-    if (2 < input_words.size() || input_words.size() < 1) {
-      set_error(invalid_hostname);
-      return;
+    auto host_node = from_hostname(input_str);
+    if (!host_node) {
+      std::string error = "change-node: invalid host format or ambiguous or"
+                          " not known host";
+      set_error(error);
+    } else {
+      set_node(*host_node);
     }
-    uint32_t input_pid = 0;
-    if (input_words.size() == 2) {
-      try {
-        input_pid = std::stoi(input_words.back());
-      } catch(...) {
-        set_error(invalid_hostname);
-        return;
-      }
-    }
-    m_self->sync_send(m_nexus_proxy, atom("OnHost"), input_words.front()).await(
-      [=](const std::vector<node_id>& nodes_on_host) {
-        if (nodes_on_host.size() == 0) {
-          set_error(unknown_hostname);
-        } else if (input_pid == 0) {
-          if (nodes_on_host.size() == 1) {
-            set_node(nodes_on_host.front());
-          } else {
-            std::stringstream es;
-            es << "Valid process-ids for " << input_words.front() << ": "
-               << endl;
-            for(auto node : nodes_on_host) {
-              es << node.process_id();
-              if (node != nodes_on_host.back()) {
-                es << ", " << endl;
-              }
-            }
-            set_error(es.str());
-          }
-        } else {
-          auto n = std::find_if(std::begin(nodes_on_host), std::end(nodes_on_host),
-                       [=](const node_id& n) -> bool {
-                         return n.process_id() == input_pid;
-                       });
-          if (n != std::end(nodes_on_host)) {
-            set_node(*n);
-          } else {
-            set_error("change-node: unkown process-id.");
-          }
-        }
-      }
-    );
   } else {
     // check if valid node is known
     std::string unkown_id = "change-node: unknown node-id. ";
@@ -316,18 +285,8 @@ void shell::all_routes(char_iter first, char_iter last) {
   // TODO: refactor with direct_conn
   m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
     [=](const std::vector<node_id>& nodes) {
-      for (auto node : nodes) {
-        m_self->sync_send(m_nexus_proxy, atom("Routes"), node).await(
-          [=](const std::set<node_id>& dr) {
-            cout << to_string(node) << " ->"
-                      << endl;
-            for (auto route : dr) {
-              cout << to_string(route)
-                   << endl;
-            }
-            cout << endl;
-          }
-        );
+      for (auto& node : nodes) {
+        cout << get_routes(node) << endl;
       }
     }
   );
@@ -416,16 +375,7 @@ void shell::direct_conn(char_iter first, char_iter last) {
   if (!assert_empty(first, last)) {
     return;
   }
-  m_self->sync_send(m_nexus_proxy, atom("Routes"), m_node).await(
-    [=](const std::set<node_id>& conn) {
-      std::cout << to_string(m_node) << " ->"
-                << std::endl;
-      for (auto ni : conn) {
-        std::cout << to_string(ni) << endl;
-      }
-      cout << endl;
-    }
-  );
+  cout << get_routes(m_node) << endl;
 }
 
 void shell::interfaces(char_iter first, char_iter last) {
@@ -555,7 +505,7 @@ void shell::list_actors(char_iter first, char_iter last) {
   );
 }
 
-void shell::set_node(node_id id) {
+void shell::set_node(const node_id& id) {
   auto node_str = to_string(id);
   m_engine->set("NODE", node_str);
   m_node = id;
@@ -577,6 +527,31 @@ void shell::test(char_iter first, char_iter last) {
   }
 }
 
+std::string shell::get_routes(const node_id& id) {
+  std::stringstream accu;
+  m_self->sync_send(m_nexus_proxy, atom("Routes"), id).await(
+    [&](const std::set<node_id>& conn) {
+      auto current_node = to_hostname(id);
+      if (!current_node) {
+        set_error("direct-routes: ");
+        return;
+      }
+      accu << *current_node << " ->"
+           << endl;
+      for (auto& ni : conn) {
+        auto neighbour = to_hostname(ni);
+        if (!neighbour) {
+          set_error("direct-routes: can't convert neighbour.");
+          return;
+        }
+        accu << " " << *neighbour
+             << endl;
+      }
+    }
+  );
+  return accu.str();
+}
+
 optional<node_id> shell::from_hostname(const std::string& input) {
   std::vector<std::string> hostname;
   caf::split(hostname, input, ":");
@@ -592,7 +567,7 @@ optional<node_id> shell::from_hostname(const std::string& input) {
         ni = nodes_on_host.front();
       } else if (input_size == 2) {
         try {
-          for (node_id node_on_host : nodes_on_host) {
+          for (auto& node_on_host : nodes_on_host) {
               uint32_t process_id = std::stoi(hostname.back());
               if (node_on_host.process_id() == process_id) {
                 ni = node_on_host;
@@ -620,10 +595,10 @@ optional<std::string> shell::to_hostname(const node_id& node) {
     [&](const std::vector<node_id>& nodes) {
         m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), node).await(
           [&](const riac::node_info& ni) {
+            // explict cast to use +=
             std::string tmp_hostname = ni.hostname;
-            //hostname = ni.hostname;
             if (nodes.size() > 1) {
-              tmp_hostname += ":" + ni.source_node.process_id();
+              tmp_hostname += ":" + std::to_string(ni.source_node.process_id());
             }
             hostname = tmp_hostname;
           }

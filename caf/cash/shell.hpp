@@ -98,7 +98,9 @@ class shell {
 
   // no shell commands
 
-  void set_node(node_id id);
+  void set_node(const node_id& id);
+
+  std::string get_routes(const node_id& id);
 
   optional<node_id> from_hostname(const std::string& node);
 
@@ -109,7 +111,7 @@ class shell {
     return [=](std::string& err, char_iter first, char_iter last) -> sash::command_result {
       (*this.*memfun)(first, last);
       if (!err.empty()) {
-        return sash::no_command;
+           return sash::no_command;
       }
       return sash::executed;
     };
