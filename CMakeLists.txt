@@ -15,7 +15,7 @@ set(CAF_CASH_SRCS
     src/main.cpp
     src/shell.cpp)
 
-find_package(Editline REQUIRED)
+find_package(Edit REQUIRED)
 
 add_executable(cash ${CAF_CASH_SRCS} ${CAF_CASH_HDRS})
 
@@ -23,6 +23,6 @@ target_link_libraries(cash
                       ${LD_FLAGS}
                       ${LIBCAF_LIBRARIES}
                       ${PTHREAD_LIBRARIES}
-                      ${EDITLINE_LIBRARIES})
+                      ${EDIT_LIBRARIES})
 
 install(PROGRAMS ${EXECUTABLE_OUTPUT_PATH}/cash DESTINATION bin)
