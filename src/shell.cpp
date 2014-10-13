@@ -49,17 +49,6 @@ std::string progressbar(int percent, char sign = '#', int amount = 50) {
   return s.str();
 }
 
-// TODO: use cafs split
-std::vector<std::string> my_split(const std::string name, const char& lim) {
-  std::stringstream         s(name);
-  std::vector<std::string>  words;
-  std::string               word;
-  while (getline(s, word, lim)) {
-    words.push_back(word);
-  }
- return words;
-}
-
 } // namespace <anonymous>
 
 namespace caf {
@@ -76,8 +65,6 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
     {"all-routes",    "prints all direct routes",      cb(&shell::all_routes)},
     {"list-nodes",    "prints all available nodes",    cb(&shell::list_nodes)},
     {"mailbox",       "prints the shell's mailbox",    cb(&shell::mailbox)},
-    // TODO: remove this command
-    {"test",          "tests from_hostname",           cb(&shell::test)},
     {"test-nodes",    "loads static dummy-nodes",      cb(&shell::test_nodes)},
     {"change-node",   "switch between nodes",          cb(&shell::change_node)},
     {"dequeue",       "removes element from mailbox",  cb(&shell::dequeue)},
@@ -282,7 +269,6 @@ void shell::all_routes(char_iter first, char_iter last) {
   if (!assert_empty(first, last)) {
     return;
   }
-  // TODO: refactor with direct_conn
   m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
     [=](const std::vector<node_id>& nodes) {
       for (auto& node : nodes) {
@@ -432,6 +418,7 @@ void shell::send(char_iter first, char_iter last) {
     set_error("cannot deserialize a message from given input");
     return;
   }
+  auto m = *msg;
   m_self->sync_send(m_nexus_proxy, atom("GetActor"), m_node, aid).await(
     [&](const actor& handle) {
       if (handle == invalid_actor) {
@@ -512,21 +499,6 @@ void shell::set_node(const node_id& id) {
   m_cli.mode_push("node");
 }
 
-void shell::test(char_iter first, char_iter last) {
-  auto dudi = from_string<node_id>(std::string(first, last));
-  //auto dudi = from_hostname(std::string(first,last));
-  if (dudi) {
-    auto blabla = to_hostname(*dudi);
-    if (blabla) {
-      cout << *blabla << endl;
-    } else {
-      set_error("NONO");
-    }
-  } else {
-    set_error("sss");
-  }
-}
-
 std::string shell::get_routes(const node_id& id) {
   std::stringstream accu;
   m_self->sync_send(m_nexus_proxy, atom("Routes"), id).await(
@@ -567,19 +539,18 @@ optional<node_id> shell::from_hostname(const std::string& input) {
         ni = nodes_on_host.front();
       } else if (input_size == 2) {
         try {
-          for (auto& node_on_host : nodes_on_host) {
-              uint32_t process_id = std::stoi(hostname.back());
-              if (node_on_host.process_id() == process_id) {
-                ni = node_on_host;
-                // TODO: remove break
-                break;
-              }
+          uint32_t process_id = std::stoi(hostname.back());
+          auto node_itr = find_if(nodes_on_host.begin(), nodes_on_host.end(),
+            [=](const node_id& node_on_host) {
+              return node_on_host.process_id() == process_id;
+            }
+          );
+          if(node_itr != nodes_on_host.end()) {
+            ni = *node_itr;
           }
         } catch (...) {
-          ni = none;
+          // nop
         }
-      } else {
-        ni = none;
       }
     }
   );
@@ -590,21 +561,24 @@ optional<std::string> shell::to_hostname(const node_id& node) {
   if (node == invalid_node_id) {
     return none;
   }
-  optional<std::string> hostname = none;
+  std::stringstream ss;
   m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
     [&](const std::vector<node_id>& nodes) {
         m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), node).await(
           [&](const riac::node_info& ni) {
             // explict cast to use +=
-            std::string tmp_hostname = ni.hostname;
+            ss << ni.hostname;
             if (nodes.size() > 1) {
-              tmp_hostname += ":" + std::to_string(ni.source_node.process_id());
+              ss << ":" + std::to_string(ni.source_node.process_id());
             }
-            hostname = tmp_hostname;
           }
         );
     }
   );
+  std::string hostname = ss.str();
+  if (hostname.empty()) {
+    return none;
+  }
   return hostname;
 }
 

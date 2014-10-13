@@ -73,9 +73,6 @@ class shell {
 
   void all_routes(char_iter first, char_iter last);
 
-  //TODO: remove this command
-  void test(char_iter first, char_iter last);
-
   // Node commands
 
   void whereami(char_iter first, char_iter last);
