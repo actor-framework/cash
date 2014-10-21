@@ -30,6 +30,6 @@ if(NOT DISABLE_CASH)
                         ${LD_FLAGS}
                         ${LIBCAF_LIBRARIES}
                         ${PTHREAD_LIBRARIES}
-                        ${EDITLINE_LIBRARIES})
+                        ${LIBEDIT_LIBRARIES})
   install(PROGRAMS ${EXECUTABLE_OUTPUT_PATH}/cash DESTINATION bin)
 endif()
