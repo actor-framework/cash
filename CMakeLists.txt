@@ -18,13 +18,14 @@ if(NOT DISABLE_CASH)
   endif()
 endif()
 
+file(GLOB CAF_CASH_HDRS "caf/cash/*.hpp" "sash/sash/*.hpp")
+set(CAF_CASH_SRCS
+    src/main.cpp
+    src/shell.cpp)
+
 # add targets to CMake
 if(NOT DISABLE_CASH)
   include_directories(. ${LIBCAF_INCLUDE_DIRS} sash/)
-  file(GLOB CAF_CASH_HDRS "caf/cash/*.hpp" "sash/sash/*.hpp")
-  set(CAF_CASH_SRCS
-      src/main.cpp
-      src/shell.cpp)
   add_executable(cash ${CAF_CASH_SRCS} ${CAF_CASH_HDRS})
   target_link_libraries(cash
                         ${LD_FLAGS}
@@ -32,4 +33,6 @@ if(NOT DISABLE_CASH)
                         ${PTHREAD_LIBRARIES}
                         ${LIBEDIT_LIBRARIES})
   install(PROGRAMS ${EXECUTABLE_OUTPUT_PATH}/cash DESTINATION bin)
+else()
+  add_custom_target(cash SOURCES ${CAF_CASH_SRCS} ${CAF_CASH_HDRS})
 endif()
