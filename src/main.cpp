@@ -42,7 +42,7 @@ constexpr char welcome_text[] = R"__(
 )__";
 
 int main(int argc, char** argv) {
-  announce<vector<node_id>>();
+  announce<vector<node_id>>("node_id_vector");
   riac::announce_message_types();
   string host;
   uint16_t port = 0;
