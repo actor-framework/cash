@@ -46,16 +46,16 @@ int main(int argc, char** argv) {
   riac::announce_message_types();
   string host;
   uint16_t port = 0;
-  options_description desc;
-  bool args_valid = match_stream<string> (argv + 1, argv + argc) (
-    on_opt1('H', "caf-nexus-host", &desc, "set nexus host") >> rd_arg(host),
-    on_opt1('p', "caf-nexus-port", &desc, "set nexus port") >> rd_arg(port),
-    on_opt0('h', "help", &desc, "print help") >> print_desc_and_exit(&desc)
-  );
-  if(!args_valid || port == 0 || host.empty()) {
-    auto desc_printer = print_desc(&desc, cerr);
-    desc_printer();
-    return 42;
+  auto res = message_builder(argv + 1, argv + argc).filter_cli({
+    {"host,H", "IP or hostname of nexus", host},
+    {"port,p", "port of published nexus actor", port}
+  });
+  if (!res.remainder.empty() || host.empty() || port == 0) {
+    cout << res.helptext << endl;
+    return 1;
+  }
+  if (res.opts.count("help") > 0) {
+    return 0;
   }
   auto nexus = io::typed_remote_actor<riac::nexus_type>(host, port);
   cout << welcome_text << endl;
