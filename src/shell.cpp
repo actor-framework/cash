@@ -27,6 +27,7 @@
 #include <algorithm>
 
 #include "caf/io/all.hpp"
+#include "caf/io/network/protocol.hpp"
 #include "caf/riac/nexus_proxy.hpp"
 
 using std::cout;
@@ -35,6 +36,7 @@ using std::setw;
 using std::left;
 using std::right;
 using std::flush;
+using caf::io::network::protocol;
 
 namespace {
 
@@ -156,7 +158,7 @@ void shell::test_nodes(char_iter first, char_iter last) {
       {{n1, 2, 2300}},
       "Sokrates",
       "Mac OS X",
-      {{"en0", {{riac::protocol::ethernet,
+      {{"en0", {{protocol::ethernet,
                  {"00:00:FF:FF:92:00"}}}}}
     },
     riac::work_load{n1, 0, 5, 3},
@@ -168,7 +170,7 @@ void shell::test_nodes(char_iter first, char_iter last) {
       {{n2, 4, 1500}, {n2, 32, 3500}},
       "Platon",
       "Linux",
-      {{"wlan0", {{riac::protocol::ethernet,
+      {{"wlan0", {{protocol::ethernet,
                    {"00:00:FF:FF:00:00"}}}}}
     },
     riac::work_load{n2, 10, 20, 3},
@@ -180,7 +182,7 @@ void shell::test_nodes(char_iter first, char_iter last) {
       {{n3, 4, 1500}, {n3, 8, 2500}, {n3, 64, 5500}},
       "hostname123",
       "BSD",
-      {{"en1", {{riac::protocol::ethernet,
+      {{"en1", {{protocol::ethernet,
                  {"00:00:FF:FF:00:00"}}}}}
     },
     riac::work_load{n3, 23, 20, 3},
@@ -370,7 +372,6 @@ void shell::interfaces(char_iter first, char_iter last) {
   }
   m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), m_node).await(
     [=](const riac::node_info& ni) {
-      using riac::protocol;
       auto tostr = [](protocol p) -> std::string {
         switch (p) {
           case protocol::ethernet:

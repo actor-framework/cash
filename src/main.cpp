@@ -28,7 +28,6 @@
 #include "caf/io/all.hpp"
 #include "caf/riac/all.hpp"
 #include "caf/cash/shell.hpp"
-#include "cppa/opt.hpp"
 
 using namespace caf;
 using namespace std;
