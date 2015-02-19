@@ -447,7 +447,7 @@ void shell::pop_front(char_iter first, char_iter last) {
   }
   m_user->receive(
     others() >> [&] {
-      cout << to_string(m_user->last_dequeued()) << endl;
+      cout << to_string(m_user->current_message()) << endl;
     },
     after(std::chrono::seconds(0)) >> [] {
       cout << "pop-front: mailbox is empty" << endl;
@@ -461,7 +461,7 @@ void shell::await_msg(char_iter first, char_iter last) {
   }
   m_user->receive(
     others() >> [&] {
-      cout << to_string(m_user->last_dequeued()) << endl;
+      cout << to_string(m_user->current_message()) << endl;
     }
   );
 }

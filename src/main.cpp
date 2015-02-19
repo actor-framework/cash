@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
   riac::announce_message_types();
   string host;
   uint16_t port = 0;
-  auto res = message_builder(argv + 1, argv + argc).filter_cli({
+  auto res = message_builder(argv + 1, argv + argc).extract_opts({
     {"host,H", "IP or hostname of nexus", host},
     {"port,p", "port of published nexus actor", port}
   });
