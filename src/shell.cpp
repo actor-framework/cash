@@ -40,9 +40,9 @@ using caf::io::network::protocol;
 
 namespace {
 
-std::string progressbar(int percent, char sign = '#', int amount = 50) {
+std::string progressbar(size_t percent, char sign = '#', int amount = 50) {
   // make sure percent is in between 0 and 100
-  percent = std::min(std::max(percent, 0), 100);
+  percent = std::min(std::max(percent, size_t{0}), size_t{100});
   std::ostringstream s;
   s << "["
     << left << setw(amount)
