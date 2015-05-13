@@ -431,12 +431,12 @@ void shell::send(char_iter first, char_iter last) {
   );
 }
 
-void shell::mailbox(char_iter first, char_iter last) {
+void shell::mailbox(char_iter, char_iter) {
   // TODO: implement me
   set_error("mailbox: not implemented yet");
 }
 
-void shell::dequeue(char_iter first, char_iter last) {
+void shell::dequeue(char_iter, char_iter) {
   // TODO: implement me
   set_error("dequeue: not implemented yet");
 }
@@ -529,7 +529,7 @@ optional<node_id> shell::from_hostname(const std::string& input) {
   std::vector<std::string> hostname;
   caf::split(hostname, input, ":");
   // check valid format
-  uint16_t input_size = hostname.size();
+  auto input_size = hostname.size();
   if (input_size < 1 || 2 < input_size) {
     return none;
   }
@@ -540,7 +540,7 @@ optional<node_id> shell::from_hostname(const std::string& input) {
         ni = nodes_on_host.front();
       } else if (input_size == 2) {
         try {
-          uint32_t process_id = std::stoi(hostname.back());
+          auto process_id = static_cast<uint32_t>(std::stoi(hostname.back()));
           auto node_itr = find_if(nodes_on_host.begin(), nodes_on_host.end(),
             [=](const node_id& node_on_host) {
               return node_on_host.process_id() == process_id;
