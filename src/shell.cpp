@@ -56,7 +56,7 @@ std::string progressbar(size_t percent, char sign = '#', int amount = 50) {
 namespace caf {
 namespace cash {
 
-shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
+shell::shell() : done_(false), engine_(sash::variables_engine<>::create()) {
   // register global commands
   std::vector<cli_type::mode_type::cmd_clause> global_cmds {
     {"quit",          "terminates the whole thing",    cb(&shell::quit)},
@@ -84,49 +84,49 @@ shell::shell() : m_done(false), m_engine(sash::variables_engine<>::create()) {
     {"direct-routes", "prints all connected nodes",    cb(&shell::direct_conn)},
     {"list-actors",   "prints all known actors",       cb(&shell::list_actors)}
   };
-  auto global_mode  = m_cli.mode_add("global", "$ ");
-  auto node_mode    = m_cli.mode_add("node"  , "$ ");
+  auto global_mode  = cli_.mode_add("global", "$ ");
+  auto node_mode    = cli_.mode_add("node"  , "$ ");
   global_mode->add_all(global_cmds);
   node_mode->add_all(global_cmds);
   node_mode->add_all(node_cmds);
-  m_cli.add_preprocessor(m_engine->as_functor());
-  m_cli.mode_push("global");
-  m_nexus_proxy = spawn<riac::nexus_proxy>();
+  cli_.add_preprocessor(engine_->as_functor());
+  cli_.mode_push("global");
+  nexus_proxy_ = spawn<riac::nexus_proxy>();
 }
 
 void shell::run(riac::nexus_type nexus) {
   cout << "Initiate handshake with Nexus ..." << std::flush;
   // wait until our proxy has finished its handshake
-  m_self->sync_send(m_nexus_proxy, atom("Init"), nexus).await(
+  self_->sync_send(nexus_proxy_, atom("Init"), nexus).await(
     on(atom("InitDone")) >> [] {
       cout << " done" << endl;
     }
   );
   std::string line;
-  while (!m_done) {
-    m_cli.read_line(line);
-    switch (m_cli.process(line)) {
+  while (! done_) {
+    cli_.read_line(line);
+    switch (cli_.process(line)) {
       default:
         break;
       case sash::nop:
         break;
       case sash::executed:
-        m_cli.append_to_history(line);
+        cli_.append_to_history(line);
         break;
       case sash::no_command:
-        m_cli.append_to_history(line);
-        cout << m_cli.last_error() << endl;
+        cli_.append_to_history(line);
+        cout << cli_.last_error() << endl;
         break;
     }
   }
-  anon_send_exit(m_nexus_proxy, exit_reason::user_shutdown);
+  anon_send_exit(nexus_proxy_, exit_reason::user_shutdown);
 }
 
 void shell::quit(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_done = true;
+  done_ = true;
 }
 
 void shell::echo(char_iter first, char_iter last) {
@@ -139,14 +139,14 @@ void shell::clear(char_iter, char_iter) {
 }
 
 void shell::help(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  cout << m_cli.current_mode().help() << endl;
+  cout << cli_.current_mode().help() << endl;
 }
 
 void shell::test_nodes(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
   node_id n1(42,   "afafafafafafafafafafafafafafafafafafafaf");
@@ -191,19 +191,19 @@ void shell::test_nodes(char_iter first, char_iter last) {
 }
 
 void shell::list_nodes(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
+  self_->sync_send(nexus_proxy_, atom("Nodes")).await(
     [=](std::vector<node_id>& nodes) {
       if (nodes.empty()) {
         cout << " no nodes avaliable" << endl;
       }
       for (auto& node : nodes) {
-        m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), node).await(
+        self_->sync_send(nexus_proxy_, atom("NodeInfo"), node).await(
           [=](const riac::node_info& ni) {
             auto node_str = to_hostname(ni.source_node);
-            if (!node_str) {
+            if (! node_str) {
               set_error("list-nodes: can not convert node.");
               return;
             }
@@ -227,11 +227,11 @@ void shell::sleep(char_iter first, char_iter last) {
 }
 
 void shell::whereami(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  auto node_host = to_hostname(m_node);
-  if (!node_host) {
+  auto node_host = to_hostname(node_);
+  if (! node_host) {
     set_error("whereami: can't convert node-id.");
     return;
   }
@@ -244,9 +244,9 @@ void shell::change_node(char_iter first, char_iter last) {
   }
   std::string input_str(first, last);
   auto input_node = from_string<node_id>(input_str);
-  if (!input_node) {
+  if (! input_node) {
     auto host_node = from_hostname(input_str);
-    if (!host_node) {
+    if (! host_node) {
       std::string error = "change-node: invalid host format or ambiguous or"
                           " not known host";
       set_error(error);
@@ -256,7 +256,7 @@ void shell::change_node(char_iter first, char_iter last) {
   } else {
     // check if valid node is known
     std::string unkown_id = "change-node: unknown node-id. ";
-    m_self->sync_send(m_nexus_proxy, atom("HasNode"), *input_node).await(
+    self_->sync_send(nexus_proxy_, atom("HasNode"), *input_node).await(
       on(atom("Yes")) >> [=] {
         set_node(*input_node);
       },
@@ -268,10 +268,10 @@ void shell::change_node(char_iter first, char_iter last) {
 }
 
 void shell::all_routes(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
+  self_->sync_send(nexus_proxy_, atom("Nodes")).await(
     [=](const std::vector<node_id>& nodes) {
       for (auto& node : nodes) {
         cout << get_routes(node) << endl;
@@ -281,19 +281,19 @@ void shell::all_routes(char_iter first, char_iter last) {
 }
 
 void shell::leave_node(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_cli.mode_pop();
+  cli_.mode_pop();
   cout << "Leaving node-mode" << endl;
-  m_engine->unset("NODE");
+  engine_->unset("NODE");
 }
 
 void shell::work_load(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_self->sync_send(m_nexus_proxy, atom("WorkLoad"), m_node).await(
+  self_->sync_send(nexus_proxy_, atom("WorkLoad"), node_).await(
     [](const riac::work_load& wl) {
       cout << setw(20) << "Processes: "
            << setw(3)  << wl.num_processes
@@ -312,10 +312,10 @@ void shell::work_load(char_iter first, char_iter last) {
 }
 
 void shell::ram_usage(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_self->sync_send(m_nexus_proxy, atom("RamUsage"), m_node).await(
+  self_->sync_send(nexus_proxy_, atom("RamUsage"), node_).await(
     [](const riac::ram_usage& ru) {
       auto used_ram_in_percent = (ru.in_use * 100.0) / ru.available;
       cout << "RAM: "
@@ -330,10 +330,10 @@ void shell::ram_usage(char_iter first, char_iter last) {
 }
 
 void shell::statistics(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), m_node).await(
+  self_->sync_send(nexus_proxy_, atom("NodeInfo"), node_).await(
     [=](const riac::node_info& ni) {
       cout << setw(21) << "Node-ID:  "
            << setw(50) << left << to_string(ni.source_node) << right << endl
@@ -360,17 +360,17 @@ void shell::statistics(char_iter first, char_iter last) {
 }
 
 void shell::direct_conn(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  cout << get_routes(m_node) << endl;
+  cout << get_routes(node_) << endl;
 }
 
 void shell::interfaces(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), m_node).await(
+  self_->sync_send(nexus_proxy_, atom("NodeInfo"), node_).await(
     [=](const riac::node_info& ni) {
       auto tostr = [](protocol p) -> std::string {
         switch (p) {
@@ -415,18 +415,18 @@ void shell::send(char_iter first, char_iter last) {
   }
   const char* msg_begin = pos + 1;
   auto msg = from_string<message>(std::string(msg_begin, clast));
-  if (!msg) {
+  if (! msg) {
     set_error("cannot deserialize a message from given input");
     return;
   }
   auto m = *msg;
-  m_self->sync_send(m_nexus_proxy, atom("GetActor"), m_node, aid).await(
+  self_->sync_send(nexus_proxy_, atom("GetActor"), node_, aid).await(
     [&](const actor& handle) {
       if (handle == invalid_actor) {
         cout << "send: no actor known with ID " << aid << endl;
         return;
       }
-      m_user->send(handle, std::move(*msg));
+      user_->send(handle, std::move(*msg));
     }
   );
 }
@@ -442,12 +442,12 @@ void shell::dequeue(char_iter, char_iter) {
 }
 
 void shell::pop_front(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_user->receive(
+  user_->receive(
     others() >> [&] {
-      cout << to_string(m_user->current_message()) << endl;
+      cout << to_string(user_->current_message()) << endl;
     },
     after(std::chrono::seconds(0)) >> [] {
       cout << "pop-front: mailbox is empty" << endl;
@@ -456,22 +456,22 @@ void shell::pop_front(char_iter first, char_iter last) {
 }
 
 void shell::await_msg(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  m_user->receive(
+  user_->receive(
     others() >> [&] {
-      cout << to_string(m_user->current_message()) << endl;
+      cout << to_string(user_->current_message()) << endl;
     }
   );
 }
 
 void shell::list_actors(char_iter first, char_iter last) {
-  if (!assert_empty(first, last)) {
+  if (! assert_empty(first, last)) {
     return;
   }
-  auto nid = m_node;
-  actor self = m_self;
+  auto nid = node_;
+  actor self = self_;
   auto mm = io::middleman::instance();
   mm->run_later([nid, self, mm] {
     auto bro = mm->get_named_broker<io::basp_broker>(atom("_BASP"));
@@ -483,7 +483,7 @@ void shell::list_actors(char_iter first, char_iter last) {
     anon_send(self, atom("ListActors"), oss.str());
   });
   // wait for result
-  m_self->sync_send(m_nexus_proxy, atom("ListActors"), m_node).await(
+  self_->sync_send(nexus_proxy_, atom("ListActors"), node_).await(
     [](const std::string& res) {
       if (res.empty()) {
         cout << "list-actors: no actors known on this host" << endl;
@@ -495,17 +495,17 @@ void shell::list_actors(char_iter first, char_iter last) {
 
 void shell::set_node(const node_id& id) {
   auto node_str = to_string(id);
-  m_engine->set("NODE", node_str);
-  m_node = id;
-  m_cli.mode_push("node");
+  engine_->set("NODE", node_str);
+  node_ = id;
+  cli_.mode_push("node");
 }
 
 std::string shell::get_routes(const node_id& id) {
   std::stringstream accu;
-  m_self->sync_send(m_nexus_proxy, atom("Routes"), id).await(
+  self_->sync_send(nexus_proxy_, atom("Routes"), id).await(
     [&](const std::set<node_id>& conn) {
       auto current_node = to_hostname(id);
-      if (!current_node) {
+      if (! current_node) {
         set_error("direct-routes: ");
         return;
       }
@@ -513,7 +513,7 @@ std::string shell::get_routes(const node_id& id) {
            << endl;
       for (auto& ni : conn) {
         auto neighbour = to_hostname(ni);
-        if (!neighbour) {
+        if (! neighbour) {
           set_error("direct-routes: can't convert neighbour.");
           return;
         }
@@ -534,7 +534,7 @@ optional<node_id> shell::from_hostname(const std::string& input) {
     return none;
   }
   optional<node_id> ni = none;
-  m_self->sync_send(m_nexus_proxy, atom("OnHost"), hostname.front()).await(
+  self_->sync_send(nexus_proxy_, atom("OnHost"), hostname.front()).await(
     [&](const std::vector<node_id>& nodes_on_host) {
       if (nodes_on_host.size() == 1 && input_size == 1) {
         ni = nodes_on_host.front();
@@ -563,9 +563,9 @@ optional<std::string> shell::to_hostname(const node_id& node) {
     return none;
   }
   std::stringstream ss;
-  m_self->sync_send(m_nexus_proxy, atom("Nodes")).await(
+  self_->sync_send(nexus_proxy_, atom("Nodes")).await(
     [&](const std::vector<node_id>& nodes) {
-        m_self->sync_send(m_nexus_proxy, atom("NodeInfo"), node).await(
+        self_->sync_send(nexus_proxy_, atom("NodeInfo"), node).await(
           [&](const riac::node_info& ni) {
             // explict cast to use +=
             ss << ni.hostname;

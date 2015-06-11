@@ -35,7 +35,7 @@ namespace caf {
 namespace cash {
 
 class shell {
- public:
+public:
   using char_iter = std::string::const_iterator;
   using cli_type = sash::sash<sash::libedit_backend>::type;
 
@@ -43,7 +43,7 @@ class shell {
 
   void run(riac::nexus_type nexus);
 
- private:
+private:
 
   // global commands
 
@@ -107,7 +107,7 @@ class shell {
   cb(void (shell::*memfun)(char_iter, char_iter)) {
     return [=](std::string& err, char_iter first, char_iter last) -> sash::command_result {
       (*this.*memfun)(first, last);
-      if (!err.empty()) {
+      if (! err.empty()) {
            return sash::no_command;
       }
       return sash::executed;
@@ -120,7 +120,7 @@ class shell {
 
   template <class T, class... Ts>
   void send_invidually(T&& arg, Ts&&... args) {
-    anon_send(m_nexus_proxy, std::forward<T>(arg));
+    anon_send(nexus_proxy_, std::forward<T>(arg));
     send_invidually(std::forward<Ts>(args)...);
   }
 
@@ -134,16 +134,16 @@ class shell {
 
   template<typename T>
   void set_error(T&& str) {
-    m_cli.set_error(std::forward<T>(str));
+    cli_.set_error(std::forward<T>(str));
   }
 
-  bool m_done;
-  node_id m_node;
-  cli_type m_cli;
-  scoped_actor m_self;
-  scoped_actor m_user;
-  actor m_nexus_proxy;
-  std::shared_ptr<sash::variables_engine<>> m_engine;
+  bool done_;
+  node_id node_;
+  cli_type cli_;
+  scoped_actor self_;
+  scoped_actor user_;
+  actor nexus_proxy_;
+  std::shared_ptr<sash::variables_engine<>> engine_;
 };
 
 } // namespace cash

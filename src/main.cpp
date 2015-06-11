@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     {"host,H", "IP or hostname of nexus", host},
     {"port,p", "port of published nexus actor", port}
   });
-  if (!res.remainder.empty() || host.empty() || port == 0) {
+  if (! res.remainder.empty() || host.empty() || port == 0) {
     cout << res.helptext << endl;
     return 1;
   }
