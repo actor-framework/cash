@@ -475,7 +475,7 @@ void shell::list_actors(char_iter first, char_iter last) {
   auto mm = io::middleman::instance();
   mm->run_later([nid, self, mm] {
     auto bro = mm->get_named_broker<io::basp_broker>(atom("_BASP"));
-    auto proxies = bro->get_namespace().get_all(nid);
+    auto proxies = bro->state.get_namespace().get_all(nid);
     std::ostringstream oss;
     for (auto& p : proxies) {
       oss << p->id() << endl;
