@@ -19,9 +19,12 @@
 
 #include "caf/cash/shell.hpp"
 
+#include <set>
+#include <map>
 #include <thread>
 #include <vector>
 #include <chrono>
+#include <string>
 #include <iterator>
 #include <iostream>
 #include <algorithm>
@@ -87,7 +90,7 @@ shell::shell() : done_(false), engine_(sash::variables_engine<>::create()) {
   auto global_mode  = cli_.mode_add("global", "$ ");
   auto node_mode    = cli_.mode_add("node"  , "$ ");
   global_mode->add_all(global_cmds);
-  node_mode->add_all(global_cmds);
+  node_mode->parent(global_mode);
   node_mode->add_all(node_cmds);
   cli_.add_preprocessor(engine_->as_functor());
   cli_.mode_push("global");
@@ -95,13 +98,17 @@ shell::shell() : done_(false), engine_(sash::variables_engine<>::create()) {
 }
 
 void shell::run(riac::nexus_type nexus) {
-  cout << "Initiate handshake with Nexus ..." << std::flush;
-  // wait until our proxy has finished its handshake
-  self_->sync_send(nexus_proxy_, atom("Init"), nexus).await(
-    on(atom("InitDone")) >> [] {
-      cout << " done" << endl;
-    }
-  );
+  if (! nexus) {
+    cout << "Run in detached mode (no nexus available)" << endl;
+  } else {
+    cout << "Initiate handshake with Nexus ..." << std::flush;
+    // wait until our proxy has finished its handshake
+    self_->sync_send(nexus_proxy_, atom("Init"), nexus).await(
+      on(atom("InitDone")) >> [] {
+        cout << " done" << endl;
+      }
+    );
+  }
   std::string line;
   while (! done_) {
     cli_.read_line(line);
@@ -123,9 +130,8 @@ void shell::run(riac::nexus_type nexus) {
 }
 
 void shell::quit(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   done_ = true;
 }
 
@@ -138,17 +144,58 @@ void shell::clear(char_iter, char_iter) {
   set_error("Implementation so far to clear screen: 'ctrl + l'");
 }
 
+using three_strings = std::tuple<std::string, std::string, std::string>;
+using help_line = std::vector<three_strings>;
+
+void fill_commands(std::set<std::string>& mode_names,
+                   help_line& cmds,
+                   size_t& max_mode_name_size,
+                   size_t& max_cmd_name_size,
+                   const cash::shell::cli_type::mode_type& mptr) {
+  max_mode_name_size = std::max(max_mode_name_size, mptr.name().size());
+  mode_names.emplace(mptr.name());
+  mptr.foreach_command([&](const cash::shell::cli_type::command_ptr& cmd) {
+    // do not insert commands that are already defined
+    // -> submode commands override global commands
+    auto pred = [&](const three_strings& x) {
+      return get<1>(x) == cmd->name();
+    };
+    if (std::none_of(cmds.begin(), cmds.end(), std::move(pred))) {
+      cmds.emplace_back(std::forward_as_tuple(mptr.name(),
+                                              cmd->name(),
+                                              cmd->description()));
+      max_cmd_name_size = std::max(max_cmd_name_size, cmd->name().size());
+    }
+  });
+  if (mptr.parent() != nullptr)
+    fill_commands(mode_names, cmds, max_mode_name_size,
+                  max_cmd_name_size, *mptr.parent());
+}
+
 void shell::help(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
-  cout << cli_.current_mode().help() << endl;
+  std::set<std::string> modes;
+  help_line cmds;
+  size_t max_mode_name_size = sizeof("[mode]");
+  size_t max_cmd_name_size = sizeof("[command]");
+  fill_commands(modes, cmds, max_mode_name_size,
+                max_cmd_name_size, cli_.current_mode());
+  cout << std::left;
+  cout << std::setw(static_cast<int>(max_mode_name_size)) << "[mode]" << "  "
+       << std::setw(static_cast<int>(max_cmd_name_size)) << "[command]" << "  "
+       << "[description]" << endl;
+  for (auto& tup : cmds)
+    cout << std::setw(static_cast<int>(max_mode_name_size))
+         << get<0>(tup) << "  "
+         << std::setw(static_cast<int>(max_cmd_name_size))
+         << get<1>(tup) << "  "
+         << get<2>(tup) << endl;
 }
 
 void shell::test_nodes(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   node_id n1(42,   "afafafafafafafafafafafafafafafafafafafaf");
   node_id n2(123,  "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf");
   node_id n3(1231, "000000000fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf");
@@ -191,20 +238,18 @@ void shell::test_nodes(char_iter first, char_iter last) {
 }
 
 void shell::list_nodes(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   self_->sync_send(nexus_proxy_, atom("Nodes")).await(
     [=](std::vector<node_id>& nodes) {
-      if (nodes.empty()) {
+      if (nodes.empty())
         cout << " no nodes avaliable" << endl;
-      }
       for (auto& node : nodes) {
         self_->sync_send(nexus_proxy_, atom("NodeInfo"), node).await(
           [=](const riac::node_info& ni) {
             auto node_str = to_hostname(ni.source_node);
             if (! node_str) {
-              set_error("list-nodes: can not convert node.");
+              set_error("list-nodes: cannot convert node.");
               return;
             }
             cout << *node_str << endl;
@@ -219,17 +264,15 @@ void shell::list_nodes(char_iter first, char_iter last) {
 }
 
 void shell::sleep(char_iter first, char_iter last) {
-  if (first == last) {
+  if (first == last)
     return;
-  }
   int time = std::stoi(std::string(first, last));
   std::this_thread::sleep_for(std::chrono::milliseconds(time));
 }
 
 void shell::whereami(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   auto node_host = to_hostname(node_);
   if (! node_host) {
     set_error("whereami: can't convert node-id.");
@@ -239,9 +282,8 @@ void shell::whereami(char_iter first, char_iter last) {
 }
 
 void shell::change_node(char_iter first, char_iter last) {
-  if (first == last) {
+  if (first == last)
     return;
-  }
   std::string input_str(first, last);
   auto input_node = from_string<node_id>(input_str);
   if (! input_node) {
@@ -253,24 +295,23 @@ void shell::change_node(char_iter first, char_iter last) {
     } else {
       set_node(*host_node);
     }
-  } else {
-    // check if valid node is known
-    std::string unkown_id = "change-node: unknown node-id. ";
-    self_->sync_send(nexus_proxy_, atom("HasNode"), *input_node).await(
-      on(atom("Yes")) >> [=] {
-        set_node(*input_node);
-      },
-      on(atom("No")) >> [&] {
-        set_error(unkown_id);
-      }
-    );
+    return;
   }
+  // check if valid node is known
+  std::string unkown_id = "change-node: unknown node-id. ";
+  self_->sync_send(nexus_proxy_, atom("HasNode"), *input_node).await(
+    on(atom("Yes")) >> [=] {
+      set_node(*input_node);
+    },
+    on(atom("No")) >> [&] {
+      set_error(unkown_id);
+    }
+  );
 }
 
 void shell::all_routes(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   self_->sync_send(nexus_proxy_, atom("Nodes")).await(
     [=](const std::vector<node_id>& nodes) {
       for (auto& node : nodes) {
@@ -281,18 +322,16 @@ void shell::all_routes(char_iter first, char_iter last) {
 }
 
 void shell::leave_node(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   cli_.mode_pop();
   cout << "Leaving node-mode" << endl;
   engine_->unset("NODE");
 }
 
 void shell::work_load(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   self_->sync_send(nexus_proxy_, atom("WorkLoad"), node_).await(
     [](const riac::work_load& wl) {
       cout << setw(20) << "Processes: "
@@ -312,9 +351,8 @@ void shell::work_load(char_iter first, char_iter last) {
 }
 
 void shell::ram_usage(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   self_->sync_send(nexus_proxy_, atom("RamUsage"), node_).await(
     [](const riac::ram_usage& ru) {
       auto used_ram_in_percent = (ru.in_use * 100.0) / ru.available;
@@ -330,9 +368,8 @@ void shell::ram_usage(char_iter first, char_iter last) {
 }
 
 void shell::statistics(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   self_->sync_send(nexus_proxy_, atom("NodeInfo"), node_).await(
     [=](const riac::node_info& ni) {
       cout << setw(21) << "Node-ID:  "
@@ -360,16 +397,14 @@ void shell::statistics(char_iter first, char_iter last) {
 }
 
 void shell::direct_conn(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   cout << get_routes(node_) << endl;
 }
 
 void shell::interfaces(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   self_->sync_send(nexus_proxy_, atom("NodeInfo"), node_).await(
     [=](const riac::node_info& ni) {
       auto tostr = [](protocol p) -> std::string {
@@ -442,11 +477,10 @@ void shell::dequeue(char_iter, char_iter) {
 }
 
 void shell::pop_front(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   user_->receive(
-    others() >> [&] {
+    others >> [&] {
       cout << to_string(user_->current_message()) << endl;
     },
     after(std::chrono::seconds(0)) >> [] {
@@ -456,9 +490,8 @@ void shell::pop_front(char_iter first, char_iter last) {
 }
 
 void shell::await_msg(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   user_->receive(
     others() >> [&] {
       cout << to_string(user_->current_message()) << endl;
@@ -467,9 +500,8 @@ void shell::await_msg(char_iter first, char_iter last) {
 }
 
 void shell::list_actors(char_iter first, char_iter last) {
-  if (! assert_empty(first, last)) {
+  if (! assert_empty(first, last))
     return;
-  }
   auto nid = node_;
   actor self = self_;
   auto mm = io::middleman::instance();
@@ -530,9 +562,8 @@ optional<node_id> shell::from_hostname(const std::string& input) {
   caf::split(hostname, input, ":");
   // check valid format
   auto input_size = hostname.size();
-  if (input_size < 1 || 2 < input_size) {
+  if (input_size < 1 || 2 < input_size)
     return none;
-  }
   optional<node_id> ni = none;
   self_->sync_send(nexus_proxy_, atom("OnHost"), hostname.front()).await(
     [&](const std::vector<node_id>& nodes_on_host) {
@@ -546,9 +577,8 @@ optional<node_id> shell::from_hostname(const std::string& input) {
               return node_on_host.process_id() == process_id;
             }
           );
-          if(node_itr != nodes_on_host.end()) {
+          if (node_itr != nodes_on_host.end())
             ni = *node_itr;
-          }
         } catch (...) {
           // nop
         }
@@ -559,9 +589,8 @@ optional<node_id> shell::from_hostname(const std::string& input) {
 }
 
 optional<std::string> shell::to_hostname(const node_id& node) {
-  if (node == invalid_node_id) {
+  if (node == invalid_node_id)
     return none;
-  }
   std::stringstream ss;
   self_->sync_send(nexus_proxy_, atom("Nodes")).await(
     [&](const std::vector<node_id>& nodes) {
@@ -569,17 +598,15 @@ optional<std::string> shell::to_hostname(const node_id& node) {
           [&](const riac::node_info& ni) {
             // explict cast to use +=
             ss << ni.hostname;
-            if (nodes.size() > 1) {
+            if (nodes.size() > 1)
               ss << ":" + std::to_string(ni.source_node.process_id());
-            }
           }
         );
     }
   );
   std::string hostname = ss.str();
-  if (hostname.empty()) {
+  if (hostname.empty())
     return none;
-  }
   return hostname;
 }
 

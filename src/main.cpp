@@ -43,20 +43,22 @@ constexpr char welcome_text[] = R"__(
 int main(int argc, char** argv) {
   announce<vector<node_id>>("node_id_vector");
   riac::announce_message_types();
-  string host;
+  string host = "localhost";
   uint16_t port = 0;
   auto res = message_builder(argv + 1, argv + argc).extract_opts({
-    {"host,H", "IP or hostname of nexus", host},
+    {"host,H", "IP or hostname of nexus (default: localhost)", host},
     {"port,p", "port of published nexus actor", port}
   });
-  if (! res.remainder.empty() || host.empty() || port == 0) {
+  if (! res.remainder.empty()) {
     cout << res.helptext << endl;
     return 1;
   }
   if (res.opts.count("help") > 0) {
     return 0;
   }
-  auto nexus = io::typed_remote_actor<riac::nexus_type>(host, port);
+  riac::nexus_type nexus;
+  if (res.opts.count("port") > 0)
+    nexus = io::typed_remote_actor<riac::nexus_type>(host, port);
   cout << welcome_text << endl;
   { // lifetime scope of shell
     cash::shell sh;
