@@ -142,7 +142,7 @@ private:
   cli_type cli_;
   scoped_actor self_;
   scoped_actor user_;
-  actor nexus_proxy_;
+  riac::nexus_proxy_type nexus_proxy_;
   std::shared_ptr<sash::variables_engine<>> engine_;
 };
 

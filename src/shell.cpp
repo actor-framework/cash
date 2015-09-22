@@ -94,20 +94,15 @@ shell::shell() : done_(false), engine_(sash::variables_engine<>::create()) {
   node_mode->add_all(node_cmds);
   cli_.add_preprocessor(engine_->as_functor());
   cli_.mode_push("global");
-  nexus_proxy_ = spawn<riac::nexus_proxy>();
+  nexus_proxy_ = spawn(riac::nexus_proxy);
 }
 
 void shell::run(riac::nexus_type nexus) {
   if (! nexus) {
     cout << "Run in detached mode (no nexus available)" << endl;
   } else {
-    cout << "Initiate handshake with Nexus ..." << std::flush;
-    // wait until our proxy has finished its handshake
-    self_->sync_send(nexus_proxy_, atom("Init"), nexus).await(
-      on(atom("InitDone")) >> [] {
-        cout << " done" << endl;
-      }
-    );
+    cout << "Register proxy at nexus ..." << std::flush;
+    self_->send(nexus, riac::add_typed_listener{nexus_proxy_});
   }
   std::string line;
   while (! done_) {
@@ -240,12 +235,12 @@ void shell::test_nodes(char_iter first, char_iter last) {
 void shell::list_nodes(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
-  self_->sync_send(nexus_proxy_, atom("Nodes")).await(
+  self_->sync_send(nexus_proxy_, riac::list_nodes::value).await(
     [=](std::vector<node_id>& nodes) {
       if (nodes.empty())
         cout << " no nodes avaliable" << endl;
       for (auto& node : nodes) {
-        self_->sync_send(nexus_proxy_, atom("NodeInfo"), node).await(
+        self_->sync_send(nexus_proxy_, riac::get_node::value, node).await(
           [=](const riac::node_info& ni) {
             auto node_str = to_hostname(ni.source_node);
             if (! node_str) {
@@ -254,7 +249,7 @@ void shell::list_nodes(char_iter first, char_iter last) {
             }
             cout << *node_str << endl;
           },
-          on(atom("NoNodeInfo")) >> [=] {
+          [=](error_atom) {
             set_error("Unexpected error.");
           }
         );
@@ -299,11 +294,11 @@ void shell::change_node(char_iter first, char_iter last) {
   }
   // check if valid node is known
   std::string unkown_id = "change-node: unknown node-id. ";
-  self_->sync_send(nexus_proxy_, atom("HasNode"), *input_node).await(
-    on(atom("Yes")) >> [=] {
+  self_->sync_send(nexus_proxy_, riac::get_node::value, *input_node).await(
+    [&](const riac::node_info&) {
       set_node(*input_node);
     },
-    on(atom("No")) >> [&] {
+    [&](error_atom) {
       set_error(unkown_id);
     }
   );
@@ -312,8 +307,8 @@ void shell::change_node(char_iter first, char_iter last) {
 void shell::all_routes(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
-  self_->sync_send(nexus_proxy_, atom("Nodes")).await(
-    [=](const std::vector<node_id>& nodes) {
+  self_->sync_send(nexus_proxy_, riac::list_nodes::value).await(
+    [&](const std::vector<node_id>& nodes) {
       for (auto& node : nodes) {
         cout << get_routes(node) << endl;
       }
@@ -332,8 +327,8 @@ void shell::leave_node(char_iter first, char_iter last) {
 void shell::work_load(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
-  self_->sync_send(nexus_proxy_, atom("WorkLoad"), node_).await(
-    [](const riac::work_load& wl) {
+  self_->sync_send(nexus_proxy_, riac::get_sys_load::value, node_).await(
+    [&](const riac::work_load& wl) {
       cout << setw(20) << "Processes: "
            << setw(3)  << wl.num_processes
            << endl
@@ -344,7 +339,7 @@ void shell::work_load(char_iter first, char_iter last) {
            << static_cast<int>(wl.cpu_load) << "%"
            << endl;
     },
-    on(atom("NoWorkLoad")) >> [] {
+    [&](error_atom) {
       cout << "No work load statistics available for node" << endl;
     }
   );
@@ -353,15 +348,15 @@ void shell::work_load(char_iter first, char_iter last) {
 void shell::ram_usage(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
-  self_->sync_send(nexus_proxy_, atom("RamUsage"), node_).await(
-    [](const riac::ram_usage& ru) {
+  self_->sync_send(nexus_proxy_, riac::get_ram_usage::value, node_).await(
+    [&](const riac::ram_usage& ru) {
       auto used_ram_in_percent = (ru.in_use * 100.0) / ru.available;
       cout << "RAM: "
            << progressbar(static_cast<size_t>(used_ram_in_percent / 2), '#')
            << ru.in_use << "/" << ru.available
            << endl;
     },
-    on(atom("NoRamUsage")) >> [] {
+    [&](error_atom) {
       cout << "No ram usage statistics available for node" << endl;
     }
   );
@@ -370,8 +365,8 @@ void shell::ram_usage(char_iter first, char_iter last) {
 void shell::statistics(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
-  self_->sync_send(nexus_proxy_, atom("NodeInfo"), node_).await(
-    [=](const riac::node_info& ni) {
+  self_->sync_send(nexus_proxy_, riac::get_node::value, node_).await(
+    [&](const riac::node_info& ni) {
       cout << setw(21) << "Node-ID:  "
            << setw(50) << left << to_string(ni.source_node) << right << endl
            << setw(21) << "Hostname:  " << ni.hostname << endl
@@ -390,7 +385,7 @@ void shell::statistics(char_iter first, char_iter last) {
       work_load(first, last);
       ram_usage(first, last);
     },
-    on(atom("NoNodeInfo")) >> [] {
+    [&](error_atom) {
       cout << "No ram usage statistics available for node" << endl;
     }
   );
@@ -405,8 +400,8 @@ void shell::direct_conn(char_iter first, char_iter last) {
 void shell::interfaces(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
-  self_->sync_send(nexus_proxy_, atom("NodeInfo"), node_).await(
-    [=](const riac::node_info& ni) {
+  self_->sync_send(nexus_proxy_, riac::get_node::value, node_).await(
+    [&](const riac::node_info& ni) {
       auto tostr = [](protocol p) -> std::string {
         switch (p) {
           case protocol::ethernet:
@@ -429,7 +424,7 @@ void shell::interfaces(char_iter first, char_iter last) {
         }
       }
     },
-    on(atom("NoNodeInfo")) >> [] {
+    [&](error_atom) {
       cout << "No ram usage statistics available for node" << endl;
     }
   );
@@ -455,13 +450,13 @@ void shell::send(char_iter first, char_iter last) {
     return;
   }
   auto m = *msg;
-  self_->sync_send(nexus_proxy_, atom("GetActor"), node_, aid).await(
-    [&](const actor& handle) {
-      if (handle == invalid_actor) {
+  self_->sync_send(nexus_proxy_, riac::get_actor::value, node_, aid).await(
+    [&](const actor_addr& handle) {
+      if (handle != invalid_actor_addr) {
         cout << "send: no actor known with ID " << aid << endl;
         return;
       }
-      user_->send(handle, std::move(*msg));
+      user_->send(actor_cast<actor>(handle), std::move(*msg));
     }
   );
 }
@@ -515,12 +510,13 @@ void shell::list_actors(char_iter first, char_iter last) {
     anon_send(self, atom("ListActors"), oss.str());
   });
   // wait for result
-  self_->sync_send(nexus_proxy_, atom("ListActors"), node_).await(
-    [](const std::string& res) {
+  self_->sync_send(nexus_proxy_, riac::list_actors::value, node_).await(
+    [&](const std::vector<actor_addr>& res) {
       if (res.empty()) {
         cout << "list-actors: no actors known on this host" << endl;
       }
-      cout << res << flush;
+      for (auto& addr : res)
+        cout << to_string(addr) << endl;
     }
   );
 }
@@ -534,8 +530,8 @@ void shell::set_node(const node_id& id) {
 
 std::string shell::get_routes(const node_id& id) {
   std::stringstream accu;
-  self_->sync_send(nexus_proxy_, atom("Routes"), id).await(
-    [&](const std::set<node_id>& conn) {
+  self_->sync_send(nexus_proxy_, riac::list_peers::value, id).await(
+    [&](const std::vector<node_id>& conn) {
       auto current_node = to_hostname(id);
       if (! current_node) {
         set_error("direct-routes: ");
@@ -565,7 +561,7 @@ optional<node_id> shell::from_hostname(const std::string& input) {
   if (input_size < 1 || 2 < input_size)
     return none;
   optional<node_id> ni = none;
-  self_->sync_send(nexus_proxy_, atom("OnHost"), hostname.front()).await(
+  self_->sync_send(nexus_proxy_, riac::list_nodes::value, hostname.front()).await(
     [&](const std::vector<node_id>& nodes_on_host) {
       if (nodes_on_host.size() == 1 && input_size == 1) {
         ni = nodes_on_host.front();
@@ -592,16 +588,16 @@ optional<std::string> shell::to_hostname(const node_id& node) {
   if (node == invalid_node_id)
     return none;
   std::stringstream ss;
-  self_->sync_send(nexus_proxy_, atom("Nodes")).await(
+  self_->sync_send(nexus_proxy_, riac::list_nodes::value).await(
     [&](const std::vector<node_id>& nodes) {
-        self_->sync_send(nexus_proxy_, atom("NodeInfo"), node).await(
-          [&](const riac::node_info& ni) {
-            // explict cast to use +=
-            ss << ni.hostname;
-            if (nodes.size() > 1)
-              ss << ":" + std::to_string(ni.source_node.process_id());
-          }
-        );
+      self_->sync_send(nexus_proxy_, riac::get_node::value, node).await(
+        [&](const riac::node_info& ni) {
+          // explict cast to use +=
+          ss << ni.hostname;
+          if (nodes.size() > 1)
+            ss << ":" + std::to_string(ni.source_node.process_id());
+        }
+      );
     }
   );
   std::string hostname = ss.str();
