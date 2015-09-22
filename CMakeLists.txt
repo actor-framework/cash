@@ -29,7 +29,9 @@ if(NOT DISABLE_CASH)
   add_executable(cash ${CAF_CASH_SRCS} ${CAF_CASH_HDRS})
   target_link_libraries(cash
                         ${LD_FLAGS}
-                        ${LIBCAF_LIBRARIES}
+                        ${CAF_LIBRARY_CORE}
+                        ${CAF_LIBRARY_IO}
+                        ${CAF_LIBRARY_RIAC}
                         ${PTHREAD_LIBRARIES}
                         ${LIBEDIT_LIBRARIES})
   install(PROGRAMS ${EXECUTABLE_OUTPUT_PATH}/cash DESTINATION bin)
