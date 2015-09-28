@@ -27,9 +27,11 @@
 
 #include "caf/riac/all.hpp"
 
+CAF_PUSH_WARNINGS
 #include "sash/sash.hpp"
 #include "sash/libedit_backend.hpp"
 #include "sash/variables_engine.hpp"
+CAF_POP_WARNINGS
 
 namespace caf {
 namespace cash {
