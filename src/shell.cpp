@@ -110,8 +110,6 @@ void shell::run(riac::nexus_type nexus) {
     switch (cli_.process(line)) {
       default:
         break;
-      case sash::nop:
-        break;
       case sash::executed:
         cli_.append_to_history(line);
         break;
@@ -352,7 +350,7 @@ void shell::ram_usage(char_iter first, char_iter last) {
     [&](const riac::ram_usage& ru) {
       auto used_ram_in_percent = (ru.in_use * 100.0) / ru.available;
       cout << "RAM: "
-           << progressbar(static_cast<size_t>(used_ram_in_percent / 2), '#')
+           << progressbar(static_cast<size_t>(used_ram_in_percent / 2.0), '#')
            << ru.in_use << "/" << ru.available
            << endl;
     },
@@ -402,23 +400,12 @@ void shell::interfaces(char_iter first, char_iter last) {
     return;
   self_->sync_send(nexus_proxy_, riac::get_node::value, node_).await(
     [&](const riac::node_info& ni) {
-      auto tostr = [](protocol p) -> std::string {
-        switch (p) {
-          case protocol::ethernet:
-            return "ethernet";
-          case protocol::ipv4:
-            return "ipv4";
-          case protocol::ipv6:
-            return "ipv6";
-        }
-        return "-invalid-";
-      };
       const char* indent = "    ";
       for (auto& interface : ni.interfaces) {
         cout << interface.first << ":" << endl;
         for (auto& addresses : interface.second) {
           for (auto& address : addresses.second) {
-            cout << indent << tostr(addresses.first)
+            cout << indent << to_string(addresses.first)
                  << " " << address << endl;
           }
         }
@@ -501,7 +488,7 @@ void shell::list_actors(char_iter first, char_iter last) {
   actor self = self_;
   auto mm = io::middleman::instance();
   mm->run_later([nid, self, mm] {
-    auto bro = mm->get_named_broker<io::basp_broker>(atom("_BASP"));
+    auto bro = mm->get_named_broker<io::basp_broker>(atom("BASP"));
     auto proxies = bro->state.get_namespace().get_all(nid);
     std::ostringstream oss;
     for (auto& p : proxies) {
