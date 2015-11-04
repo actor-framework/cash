@@ -22,7 +22,7 @@
 
 #include <string>
 
-#include "caf/optional.hpp"
+#include "caf/maybe.hpp"
 #include "caf/scoped_actor.hpp"
 
 #include "caf/riac/all.hpp"
@@ -101,9 +101,9 @@ private:
 
   std::string get_routes(const node_id& id);
 
-  optional<node_id> from_hostname(const std::string& node);
+  maybe<node_id> from_hostname(const std::string& node);
 
-  optional<std::string> to_hostname(const node_id& ni);
+  maybe<std::string> to_hostname(const node_id& ni);
 
   inline std::function<sash::command_result (std::string&, char_iter, char_iter)>
   cb(void (shell::*memfun)(char_iter, char_iter)) {
