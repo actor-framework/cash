@@ -41,8 +41,10 @@ constexpr char welcome_text[] = R"__(
 )__";
 
 int main(int argc, char** argv) {
-  announce<vector<node_id>>("node_id_vector");
-  riac::announce_message_types();
+  actor_system_config cfg{argc, argv};
+  riac::add_message_types(cfg);
+  cfg.add_message_type<vector<node_id>>("node_id_vec");
+  actor_system system{cfg};
   string host = "localhost";
   uint16_t port = 0;
   auto res = message_builder(argv + 1, argv + argc).extract_opts({
@@ -58,12 +60,11 @@ int main(int argc, char** argv) {
   }
   riac::nexus_type nexus;
   if (res.opts.count("port") > 0)
-    nexus = io::typed_remote_actor<riac::nexus_type>(host, port);
+    nexus = system.middleman().typed_remote_actor<riac::nexus_type>(host, port);
   cout << welcome_text << endl;
   { // lifetime scope of shell
-    cash::shell sh;
+    cash::shell sh{system};
     sh.run(nexus);
   }
-  await_all_actors_done();
-  shutdown();
+  system.await_all_actors_done();
 }

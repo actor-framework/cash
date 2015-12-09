@@ -41,7 +41,7 @@ public:
   using char_iter = std::string::const_iterator;
   using cli_type = sash::sash<sash::libedit_backend>::type;
 
-  shell();
+  shell(actor_system& sys);
 
   void run(riac::nexus_type nexus);
 
