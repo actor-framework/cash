@@ -78,7 +78,7 @@ shell::shell(actor_system& sys)
     {"change-node",   "switch between nodes",          cb(&shell::change_node)},
     {"dequeue",       "removes element from mailbox",  cb(&shell::dequeue)},
     {"pop-front",     "removes oldest mailbox element",cb(&shell::pop_front)},
-    {"await-msg",     "awaits and prints a message",   cb(&shell::await_msg)}
+    {"await-msg",     "receives and prints a message", cb(&shell::await_msg)}
   };
   std::vector<cli_type::mode_type::cmd_clause> node_cmds {
     {"whereami",      "prints current node",           cb(&shell::whereami)},

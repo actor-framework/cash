@@ -62,9 +62,6 @@ int main(int argc, char** argv) {
   if (res.opts.count("port") > 0)
     nexus = system.middleman().typed_remote_actor<riac::nexus_type>(host, port);
   cout << welcome_text << endl;
-  { // lifetime scope of shell
-    cash::shell sh{system};
-    sh.run(nexus);
-  }
-  system.await_all_actors_done();
+  cash::shell sh{system};
+  sh.run(nexus);
 }
