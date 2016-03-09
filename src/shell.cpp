@@ -475,8 +475,8 @@ void shell::pop_front(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
   user_->receive(
-    others >> [&] {
-      cout << to_string(user_->current_message()) << endl;
+    others >> [&](const message& msg) {
+      cout << to_string(msg) << endl;
     },
     after(std::chrono::seconds(0)) >> [] {
       cout << "pop-front: mailbox is empty" << endl;
@@ -488,8 +488,8 @@ void shell::await_msg(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
   user_->receive(
-    others() >> [&] {
-      cout << to_string(user_->current_message()) << endl;
+    others() >> [&](const message& msg) {
+      cout << to_string(msg) << endl;
     }
   );
 }
