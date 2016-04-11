@@ -518,10 +518,9 @@ void shell::list_actors(char_iter first, char_iter last) {
   // wait for result
   self_->request(nexus_proxy_, infinite,
                  riac::list_actors::value, node_).receive(
-    [&](const std::vector<actor_addr>& res) {
-      if (res.empty()) {
+    [&](const std::vector<strong_actor_ptr>& res) {
+      if (res.empty())
         cout << "list-actors: no actors known on this host" << endl;
-      }
       for (auto& addr : res)
         cout << to_string(addr) << endl;
     }
@@ -544,16 +543,14 @@ std::string shell::get_routes(const node_id& id) {
         set_error("direct-routes: ");
         return;
       }
-      accu << *current_node << " ->"
-           << endl;
+      accu << *current_node << " ->" << endl;
       for (auto& ni : conn) {
-        auto neighbour = to_hostname(ni);
-        if (! neighbour) {
-          set_error("direct-routes: can't convert neighbour.");
+        auto neighbor = to_hostname(ni);
+        if (! neighbor) {
+          set_error("direct-routes: can't convert neighbor.");
           return;
         }
-        accu << " " << *neighbour
-             << endl;
+        accu << " " << *neighbor << endl;
       }
     }
   );
