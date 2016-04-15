@@ -480,24 +480,19 @@ void shell::dequeue(char_iter, char_iter) {
 void shell::pop_front(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
-  user_->receive(
-    others >> [&](const message& msg) {
-      cout << to_string(msg) << endl;
-    },
-    after(std::chrono::seconds(0)) >> [] {
-      cout << "pop-front: mailbox is empty" << endl;
-    }
-  );
+  auto mptr = user_->next_message();
+  if (! mptr)
+    cout << "pop-front: mailbox is empty" << endl;
+  else
+    cout << to_string(mptr->msg) << endl;
 }
 
 void shell::await_msg(char_iter first, char_iter last) {
   if (! assert_empty(first, last))
     return;
-  user_->receive(
-    others() >> [&](const message& msg) {
-      cout << to_string(msg) << endl;
-    }
-  );
+  user_->await_data();
+  auto mptr = user_->next_message();
+  cout << to_string(mptr->msg) << endl;
 }
 
 void shell::list_actors(char_iter first, char_iter last) {
