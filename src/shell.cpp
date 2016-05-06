@@ -552,14 +552,14 @@ std::string shell::get_routes(const node_id& id) {
   return accu.str();
 }
 
-maybe<node_id> shell::from_hostname(const std::string& input) {
+optional<node_id> shell::from_hostname(const std::string& input) {
   std::vector<std::string> hostname;
   caf::split(hostname, input, ":");
   // check valid format
   auto input_size = hostname.size();
   if (input_size < 1 || 2 < input_size)
     return none;
-  maybe<node_id> ni;
+  optional<node_id> ni;
   self_->request(nexus_proxy_, infinite,
                  riac::list_nodes::value, hostname.front()).receive(
     [&](const std::vector<node_id>& nodes_on_host) {
@@ -584,7 +584,7 @@ maybe<node_id> shell::from_hostname(const std::string& input) {
   return ni;
 }
 
-maybe<std::string> shell::to_hostname(const node_id& node) {
+optional<std::string> shell::to_hostname(const node_id& node) {
   if (node == invalid_node_id)
     return none;
   std::stringstream ss;
