@@ -41,7 +41,8 @@ constexpr char welcome_text[] = R"__(
 )__";
 
 int main(int argc, char** argv) {
-  actor_system_config cfg{argc, argv};
+  actor_system_config cfg;
+  cfg.parse(argc, argv);
   riac::add_message_types(cfg);
   cfg.add_message_type<vector<node_id>>("node_id_vec");
   actor_system system{cfg};
@@ -58,7 +59,7 @@ int main(int argc, char** argv) {
   if (res.opts.count("help") > 0) {
     return 0;
   }
-  riac::nexus_type nexus;
+  riac::nexus_type nexus{unsafe_actor_handle_init};
   if (res.opts.count("port") > 0)
     nexus = system.middleman().typed_remote_actor<riac::nexus_type>(host, port);
   cout << welcome_text << endl;

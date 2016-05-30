@@ -126,11 +126,13 @@ private:
     send_invidually(std::forward<Ts>(args)...);
   }
 
+  /*
   template <class... Ts>
   void send_invidually(riac::node_info&& arg, Ts&&... args) {
     anon_send(nexus_proxy_, std::move(arg), actor{invalid_actor});
     send_invidually(std::forward<Ts>(args)...);
   }
+  */
 
   inline bool assert_empty(char_iter first, char_iter last) {
     if (first != last) {

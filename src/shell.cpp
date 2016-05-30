@@ -63,6 +63,7 @@ shell::shell(actor_system& sys)
     : done_(false),
       self_(sys),
       user_(sys),
+      nexus_proxy_(sys.spawn(riac::nexus_proxy)),
       engine_(sash::variables_engine<>::create()) {
   // register global commands
   std::vector<cli_type::mode_type::cmd_clause> global_cmds {
@@ -98,15 +99,14 @@ shell::shell(actor_system& sys)
   node_mode->add_all(node_cmds);
   cli_.add_preprocessor(engine_->as_functor());
   cli_.mode_push("global");
-  nexus_proxy_ = sys.spawn(riac::nexus_proxy);
 }
 
 void shell::run(riac::nexus_type nexus) {
-  if (! nexus) {
+  if (nexus.unsafe()) {
     cout << "Run in detached mode (no nexus available)" << endl;
   } else {
     cout << "Register proxy at nexus ..." << std::flush;
-    self_->send(nexus, riac::add_typed_listener{nexus_proxy_});
+    self_->send(nexus, add_atom::value,  riac::listener_type{nexus_proxy_});
   }
   std::string line;
   while (! done_) {
